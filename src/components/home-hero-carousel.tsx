@@ -46,7 +46,13 @@ export function HomeHeroCarousel({ banners }: { banners: BannerRow[] }) {
       <section className="oc-hero-live">
         <picture>
           {mobile ? <source media="(max-width: 768px)" srcSet={mobile} /> : null}
-          <img className="oc-hero-live-bg" src={desktop} alt="" />
+          <img
+            className="oc-hero-live-bg"
+            src={desktop}
+            alt=""
+            fetchPriority="high"
+            decoding="async"
+          />
         </picture>
         <div className="oc-hero-live-shade" />
         <div className="container oc-hero-live-grid">
@@ -74,7 +80,14 @@ export function HomeHeroCarousel({ banners }: { banners: BannerRow[] }) {
           >
             <picture>
               {mobile ? <source media="(max-width: 768px)" srcSet={mobile} /> : null}
-              <img className="oc-hero-live-bg" src={desktop} alt="" />
+              <img
+                className="oc-hero-live-bg"
+                src={desktop}
+                alt=""
+                fetchPriority={i === 0 ? "high" : "auto"}
+                loading={i === 0 ? "eager" : "lazy"}
+                decoding="async"
+              />
             </picture>
             <div className="oc-hero-live-shade" />
             <div className="container oc-hero-live-grid">

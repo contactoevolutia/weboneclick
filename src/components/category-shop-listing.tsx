@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { JsonLdScript } from "@/components/json-ld";
 import { ProductCard } from "@/components/product-card";
 import { ShopSidebar } from "@/components/shop-sidebar";
 import { ShopToolbar } from "@/components/shop-toolbar";
@@ -12,6 +13,7 @@ import {
 } from "@/lib/products";
 import { prisma } from "@/lib/prisma";
 import { getDescuentoContadoConfig } from "@/lib/parametros";
+import { breadcrumbJsonLd, itemListJsonLd } from "@/lib/seo/json-ld";
 
 function param(sp: Record<string, string | string[] | undefined>, key: string) {
   const v = sp[key];
@@ -73,7 +75,7 @@ export async function CategoryShopListing({ category, path, searchParams }: Prop
 
   const categoryIds = await resolveCategoryProductIds(category.id_categoria);
 
-  const [facets, catFilter, marca, descuentoContado] = await Promise.all([
+  const [facets, catFilter, marca, descuentoContado, pathCats] = await Promise.all([
     getShopFacets({ ids: categoryIds }),
     query.cat ? resolveCategoryFilterIdsBySlug(query.cat) : Promise.resolve(null),
     query.marca
@@ -83,7 +85,13 @@ export async function CategoryShopListing({ category, path, searchParams }: Prop
         })
       : Promise.resolve(null),
     getDescuentoContadoConfig(),
+    prisma.categoria.findMany({
+      where: { slug: { in: path } },
+      select: { slug: true, nombre: true },
+    }),
   ]);
+
+  const catBySlug = new Map(pathCats.map((c) => [c.slug, c.nombre]));
 
   const { items, total } = await getActiveProducts({
     ids: categoryIds,
@@ -103,16 +111,41 @@ export async function CategoryShopListing({ category, path, searchParams }: Prop
   const to = Math.min(skip + items.length, total);
   const pageNumbers = paginationWindow(page, pages);
 
+  const h1 = category.nombre;
+
+  const crumbItems = [
+    { name: "Inicio", path: "/" },
+    ...path.map((slug, i) => ({
+      name: catBySlug.get(slug) || slug,
+      path: `/${path.slice(0, i + 1).join("/")}`,
+    })),
+  ];
+
   return (
     <div className="oc-shop-page">
+      <JsonLdScript
+        data={[
+          breadcrumbJsonLd(crumbItems),
+          itemListJsonLd(
+            items.map((p) => ({ name: p.titulo, path: `/producto/${p.slug}` }))
+          ),
+        ]}
+      />
       <div className="container">
         <div className="oc-page-header">
-          <nav className="oc-breadcrumb">
-            <Link href="/">Inicio</Link>
-            <span>/</span>
-            <span>{category.nombre}</span>
+          <nav className="oc-breadcrumb" aria-label="Breadcrumb">
+            {crumbItems.map((c, i) => (
+              <span key={c.path} className="oc-breadcrumb-item">
+                {i > 0 ? <span>/</span> : null}
+                {i < crumbItems.length - 1 ? (
+                  <Link href={c.path}>{c.name}</Link>
+                ) : (
+                  <span>{c.name}</span>
+                )}
+              </span>
+            ))}
           </nav>
-          <h1>{category.nombre}</h1>
+          <h1>{h1}</h1>
         </div>
 
         <div className="oc-shop-layout">

@@ -1981,6 +1981,9 @@ img { max-width: 100%; display: block; }
 
 .oc-page-header { padding: 1.75rem 0 0.5rem; }
 .oc-page-header h1 { margin: 0; font-size: 1.85rem; letter-spacing: -0.02em; }
+.oc-breadcrumb-item {
+  display: inline;
+}
 .oc-promo-kicker {
   margin: 0 0 0.25rem;
   font-size: 0.85rem;

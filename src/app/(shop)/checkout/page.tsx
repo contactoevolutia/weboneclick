@@ -34,7 +34,10 @@ import { continueAsGuest, continueWithGoogle } from "./identity-actions";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Finalizar compra" };
+export const metadata = {
+  title: "Finalizar compra",
+  robots: { index: false, follow: false },
+};
 
 type SearchParams = Promise<{ modo?: string }>;
 

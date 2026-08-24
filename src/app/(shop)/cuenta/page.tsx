@@ -4,7 +4,10 @@ import { canAccessAdminPanel, isAdmin } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Cuenta" };
+export const metadata = {
+  title: "Cuenta",
+  robots: { index: false, follow: false },
+};
 
 export default async function CuentaPage() {
   const session = await auth();

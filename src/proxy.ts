@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { canAccessAdminPanel, isAdmin, VENDEDOR_ROLE } from "@/lib/auth-guard";
+import { resolveLegacyRedirect } from "@/lib/seo/legacy-redirects";
 import { NextResponse } from "next/server";
 
 /**
@@ -33,6 +34,17 @@ export default auth((req) => {
   if (canonical) return canonical;
 
   const { pathname } = req.nextUrl;
+
+  // Redirects permanentes WooCommerce/legacy (mapa en lib/seo/legacy-redirects).
+  // Solo cuando el pathname difiere del destino para evitar loops.
+  const legacyTo = resolveLegacyRedirect(pathname);
+  if (legacyTo && legacyTo !== pathname.replace(/\/$/, "") && legacyTo !== pathname) {
+    const url = req.nextUrl.clone();
+    url.pathname = legacyTo;
+    url.search = "";
+    return NextResponse.redirect(url, 308);
+  }
+
   const isLogin = pathname.startsWith("/admin/login");
   const isAdminPath = pathname.startsWith("/admin");
 

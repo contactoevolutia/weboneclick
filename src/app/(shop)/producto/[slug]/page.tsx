@@ -1,5 +1,7 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { JsonLdScript } from "@/components/json-ld";
 import { ViewItemTracker } from "@/components/funnel-trackers";
 import { ProductAddToCart } from "@/components/product-add-to-cart";
 import { ProductCard } from "@/components/product-card";
@@ -16,9 +18,38 @@ import {
 } from "@/lib/products";
 import { formatPriceArs, precioSinImpuestos, productoCalificaDescuentoContado } from "@/lib/pricing";
 import { getDescuentoContadoConfig } from "@/lib/parametros";
-import { whatsappUrl } from "@/lib/utils";
+import { whatsappUrl, uploadPublicUrl } from "@/lib/utils";
+import { pageMetadata } from "@/lib/seo/build-metadata";
+import { breadcrumbJsonLd, productJsonLd } from "@/lib/seo/json-ld";
+import { stripHtml, truncateMeta } from "@/lib/seo/strip-html";
 
 type Params = Promise<{ slug: string }>;
+
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const { slug } = await params;
+  const product = await getProductBySlug(slug);
+  if (!product) return { title: "Producto no encontrado" };
+
+  const imagenes = sortProductImageLinks(
+    product.archivos.map((a) => ({
+      link: a.archivo.link,
+      tipo: a.archivo.tipo,
+      id_archivo: a.archivo.id_archivo,
+    }))
+  );
+  const image = imagenes[0] ? uploadPublicUrl(imagenes[0]) : null;
+  const desc = truncateMeta(
+    stripHtml(product.descripcion) ||
+      `Comprá ${product.titulo} en OneClick, Apple Premium Reseller Argentina. Garantía oficial y envío a todo el país.`
+  );
+
+  return pageMetadata({
+    title: `${product.titulo} | OneClick`,
+    description: desc,
+    path: `/producto/${product.slug}`,
+    image,
+  });
+}
 
 function DeliveryBlock() {
   return (
@@ -140,6 +171,35 @@ export default async function ProductoPage({ params }: { params: Params }) {
 
   return (
     <div className="container oc-pdp">
+      <JsonLdScript
+        data={[
+          breadcrumbJsonLd([
+            { name: "Inicio", path: "/" },
+            ...(product.categorias[0]
+              ? [
+                  {
+                    name: product.categorias[0].categoria.nombre,
+                    path: `/${product.categorias[0].categoria.slug}`,
+                  },
+                ]
+              : []),
+            { name: product.titulo, path: `/producto/${product.slug}` },
+          ]),
+          productJsonLd({
+            name: product.titulo,
+            description: truncateMeta(stripHtml(product.descripcion), 300),
+            slug: product.slug,
+            sku: product.sku,
+            image: imagenes[0] ? uploadPublicUrl(imagenes[0]) : null,
+            brandName: product.marca?.nombre,
+            price: venta,
+            inStock,
+            refurbished: product.categorias.some((c) =>
+              /outlet/i.test(c.categoria.slug + c.categoria.nombre)
+            ),
+          }),
+        ]}
+      />
       <ViewItemTracker
         itemId={String(product.id_producto)}
         itemName={product.titulo}

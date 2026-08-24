@@ -1,0 +1,7 @@
+# Inventario de URLs legacy (una por línea).
+# Exportar desde Google Search Console (Páginas → 404 / con clics) o sitemaps WP.
+# Formato: pathname o URL completa. Líneas vacías y # se ignoran.
+#
+# Ejemplo:
+# /producto/iphone-air-256gb-negro-espacial
+# https://oneclickstore.com/producto/macbook-air-m3-256gb/

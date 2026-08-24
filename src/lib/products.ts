@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import {
@@ -665,6 +666,42 @@ export async function getActiveProducts(options?: {
   /** Si false, no carga badges de promo (default true) */
   withPromoBadges?: boolean;
 }): Promise<{ items: ProductListItem[]; total: number }> {
+  const cacheKey = JSON.stringify({
+    q: options?.q ?? null,
+    categoriaId: options?.categoriaId ?? null,
+    marcaId: options?.marcaId ?? null,
+    ids: options?.ids?.slice().sort((a, b) => a - b) ?? null,
+    characteristicFilters: options?.characteristicFilters ?? null,
+    take: options?.take ?? 24,
+    skip: options?.skip ?? 0,
+    order: options?.order ?? "ultimos",
+    minPrice: options?.minPrice ?? null,
+    maxPrice: options?.maxPrice ?? null,
+    inStockOnly: options?.inStockOnly ?? false,
+    withPromoBadges: options?.withPromoBadges !== false,
+  });
+
+  return unstable_cache(
+    () => getActiveProductsUncached(options),
+    ["active-products", cacheKey],
+    { tags: ["products"], revalidate: 300 }
+  )();
+}
+
+async function getActiveProductsUncached(options?: {
+  q?: string;
+  categoriaId?: number;
+  marcaId?: number;
+  ids?: number[];
+  characteristicFilters?: AppliedCharacteristicFilter[];
+  take?: number;
+  skip?: number;
+  order?: ShopOrder;
+  minPrice?: number;
+  maxPrice?: number;
+  inStockOnly?: boolean;
+  withPromoBadges?: boolean;
+}): Promise<{ items: ProductListItem[]; total: number }> {
   const where: Prisma.productoWhereInput = {
     activo: true,
   };
@@ -869,6 +906,14 @@ export async function getProductById(id: number) {
 }
 
 export async function getProductBySlug(slug: string) {
+  return unstable_cache(
+    () => getProductBySlugUncached(slug),
+    ["product-by-slug", slug],
+    { tags: ["products", `product-${slug}`], revalidate: 300 }
+  )();
+}
+
+async function getProductBySlugUncached(slug: string) {
   const product = await prisma.producto.findFirst({
     where: { slug, activo: true },
     include: {
@@ -897,6 +942,14 @@ export async function getProductBySlug(slug: string) {
 }
 
 export async function getActiveBanners(ubicacion?: string) {
+  return unstable_cache(
+    () => getActiveBannersUncached(ubicacion),
+    ["active-banners", ubicacion ?? "all"],
+    { tags: ["banners"], revalidate: 300 }
+  )();
+}
+
+async function getActiveBannersUncached(ubicacion?: string) {
   const now = new Date();
   return prisma.banner.findMany({
     where: {
@@ -910,6 +963,15 @@ export async function getActiveBanners(ubicacion?: string) {
 }
 
 export async function getCategoryBySlugPath(slugs: string[]) {
+  if (!slugs.length) return null;
+  return unstable_cache(
+    () => getCategoryBySlugPathUncached(slugs),
+    ["category-by-path", slugs.join("/")],
+    { tags: ["categories"], revalidate: 3600 }
+  )();
+}
+
+async function getCategoryBySlugPathUncached(slugs: string[]) {
   if (!slugs.length) return null;
 
   // Prefer exact hierarchical match

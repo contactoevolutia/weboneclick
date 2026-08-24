@@ -94,7 +94,15 @@ export function ProductGallery({ images, alt, outOfStock }: Props) {
         )}
 
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={urls[index]} alt={alt} className="oc-gallery-main" />
+        <img
+          src={urls[index]}
+          alt={alt}
+          className="oc-gallery-main"
+          width={800}
+          height={800}
+          fetchPriority="high"
+          decoding="async"
+        />
 
         {multi && (
           <button

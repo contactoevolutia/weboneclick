@@ -10,6 +10,16 @@ import { ProductCard } from "@/components/product-card";
 import { getActiveBanners } from "@/lib/products";
 import { getDescuentoContadoConfig } from "@/lib/parametros";
 import { getHomeSeccion } from "@/lib/secciones";
+import { pageMetadata } from "@/lib/seo/build-metadata";
+import { SEO_PAGES } from "@/lib/seo/pages-content";
+
+const homeSeo = SEO_PAGES["/"];
+
+export const metadata = pageMetadata({
+  title: homeSeo.title,
+  description: homeSeo.description,
+  path: "/",
+});
 
 export default async function HomePage() {
   const [

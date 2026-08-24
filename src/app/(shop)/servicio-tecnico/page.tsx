@@ -1,8 +1,18 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { JsonLdScript } from "@/components/json-ld";
 import { ServicioTecnicoForm } from "@/components/servicio-tecnico-form";
+import { pageMetadata } from "@/lib/seo/build-metadata";
+import { howToJsonLd } from "@/lib/seo/json-ld";
+import { SEO_PAGES } from "@/lib/seo/pages-content";
 
-export const metadata = { title: "Servicio Técnico" };
+const seo = SEO_PAGES["/servicio-tecnico"];
+
+export const metadata = pageMetadata({
+  title: seo.title,
+  description: seo.description,
+  path: "/servicio-tecnico",
+});
 
 const HIGHLIGHTS = [
   {
@@ -121,6 +131,9 @@ const STEPS = [
 export default function ServicioTecnicoPage() {
   return (
     <div className="oc-st">
+      <JsonLdScript
+        data={howToJsonLd("Cómo funciona el servicio técnico OneClick", STEPS)}
+      />
       <section className="container oc-st-hero">
         <h1>Servicio Técnico Apple Autorizado en Argentina</h1>
         <p>

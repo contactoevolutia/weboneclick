@@ -12,7 +12,10 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Params }) {
   const { id } = await params;
-  return { title: `Pedido #${id}` };
+  return {
+    title: `Pedido #${id}`,
+    robots: { index: false, follow: false },
+  };
 }
 
 function tokensMatch(a: string, b: string): boolean {

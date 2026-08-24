@@ -36,6 +36,10 @@ export function ProductCard({ product, descuentoContado = null }: Props) {
           <img
             src={product.imagen ? uploadPublicUrl(product.imagen) : "/placeholder-product.svg"}
             alt={product.titulo}
+            width={400}
+            height={400}
+            loading="lazy"
+            decoding="async"
           />
         </Link>
         {outOfStock && (

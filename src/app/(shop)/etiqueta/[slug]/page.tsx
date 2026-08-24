@@ -1,11 +1,25 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ProductCard } from "@/components/product-card";
 import { prisma } from "@/lib/prisma";
 import { pickCurrentPriceInfo } from "@/lib/products";
 import { getDescuentoContadoConfig } from "@/lib/parametros";
+import { pageMetadata } from "@/lib/seo/build-metadata";
 
 type Params = Promise<{ slug: string }>;
+
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const { slug } = await params;
+  const etiqueta = await prisma.etiqueta.findUnique({ where: { slug } });
+  if (!etiqueta) return {};
+  return pageMetadata({
+    title: `${etiqueta.nombre} | OneClick`,
+    description: `Productos con la etiqueta ${etiqueta.nombre} en OneClick.`,
+    path: `/etiqueta/${etiqueta.slug}`,
+    robots: { index: false, follow: true },
+  });
+}
 
 export default async function EtiquetaPage({ params }: { params: Params }) {
   const { slug } = await params;

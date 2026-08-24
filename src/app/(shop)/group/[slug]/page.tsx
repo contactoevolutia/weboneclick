@@ -1,11 +1,28 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ProductCard } from "@/components/product-card";
 import { prisma } from "@/lib/prisma";
 import { pickCurrentPriceInfo } from "@/lib/products";
 import { getDescuentoContadoConfig } from "@/lib/parametros";
+import { pageMetadata } from "@/lib/seo/build-metadata";
 
 type Params = Promise<{ slug: string }>;
+
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const { slug } = await params;
+  const grupo = await prisma.grupo_producto.findUnique({
+    where: { slug },
+    select: { nombre: true, slug: true, descripcion: true },
+  });
+  if (!grupo) return {};
+  return pageMetadata({
+    title: `${grupo.nombre} | OneClick`,
+    description: grupo.descripcion || `Grupo ${grupo.nombre} en OneClick.`,
+    path: `/group/${grupo.slug}`,
+    robots: { index: false, follow: true },
+  });
+}
 
 export default async function GrupoPage({ params }: { params: Params }) {
   const { slug } = await params;

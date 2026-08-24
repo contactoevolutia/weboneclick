@@ -24,6 +24,7 @@
     "test:checkout-odoo": "tsx scripts/test-checkout-odoo.ts",
     "test:odoo-amount": "tsx scripts/test-odoo-amount.ts",
     "test:order-mail": "tsx scripts/test-order-mail.ts",
+    "build:legacy-redirects": "tsx scripts/build-legacy-redirects.ts",
     "assets:download": "node scripts/download-assets.mjs",
     "postinstall": "prisma generate"
   },

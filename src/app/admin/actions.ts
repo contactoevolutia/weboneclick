@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
@@ -9,6 +9,11 @@ import { slugify } from "@/lib/slug";
 
 async function guard() {
   await requireAdmin();
+}
+
+function revalidateCatalog() {
+  revalidateTag("products", { expire: 0 });
+  revalidateTag("categories", { expire: 0 });
 }
 
 export async function createProducto(formData: FormData) {
@@ -47,6 +52,7 @@ export async function createProducto(formData: FormData) {
     },
   });
 
+  revalidateCatalog();
   revalidatePath("/admin/productos");
   revalidatePath("/shop");
   redirect(`/admin/productos/${product.id_producto}`);
@@ -74,6 +80,7 @@ export async function updateProducto(id_producto: number, formData: FormData) {
     }),
   ]);
 
+  revalidateCatalog();
   revalidatePath(`/admin/productos/${id_producto}`);
   revalidatePath("/catalogo");
   revalidatePath(`/catalogo/${id_producto}`);
@@ -174,6 +181,7 @@ export async function uploadProductoImagen(id_producto: number, formData: FormDa
     where: { id_producto },
     select: { slug: true },
   });
+  revalidateCatalog();
   revalidatePath(`/admin/productos/${id_producto}`);
   revalidatePath(`/catalogo/${id_producto}`);
   if (producto?.slug) revalidatePath(`/producto/${producto.slug}`);
@@ -212,6 +220,7 @@ export async function createCategoria(formData: FormData) {
       id_cat_superior: id_cat_superior || null,
     },
   });
+  revalidateCatalog();
   revalidatePath("/admin/categorias");
   revalidatePath("/shop");
   redirect(`/admin/categorias/${categoria.id_categoria}`);
@@ -240,6 +249,7 @@ export async function updateCategoria(id_categoria: number, formData: FormData) 
     }),
   ]);
 
+  revalidateCatalog();
   revalidatePath("/admin/categorias");
   revalidatePath(`/admin/categorias/${id_categoria}`);
   revalidatePath("/catalogo");
@@ -248,6 +258,7 @@ export async function updateCategoria(id_categoria: number, formData: FormData) 
 export async function deleteCategoria(id_categoria: number) {
   await guard();
   await prisma.categoria.delete({ where: { id_categoria } });
+  revalidateCatalog();
   revalidatePath("/admin/categorias");
   revalidatePath("/catalogo");
   redirect("/admin/categorias");

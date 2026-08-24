@@ -1,11 +1,29 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ProductCard } from "@/components/product-card";
 import { prisma } from "@/lib/prisma";
 import { getActiveProducts } from "@/lib/products";
 import { getDescuentoContadoConfig } from "@/lib/parametros";
+import { pageMetadata } from "@/lib/seo/build-metadata";
+import { stripHtml, truncateMeta } from "@/lib/seo/strip-html";
 
 type Params = Promise<{ slug: string }>;
+
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const { slug } = await params;
+  const familia = await prisma.familia.findUnique({ where: { slug } });
+  if (!familia) return {};
+  const title = familia.titulo || familia.nombre;
+  return pageMetadata({
+    title: `${title} | OneClick Argentina`,
+    description: truncateMeta(
+      stripHtml(familia.descripcion) ||
+        `${title} en OneClick, Apple Premium Reseller Argentina.`
+    ),
+    path: `/familia/${familia.slug}`,
+  });
+}
 
 export default async function FamiliaPage({ params }: { params: Params }) {
   const { slug } = await params;

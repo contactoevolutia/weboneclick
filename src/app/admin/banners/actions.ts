@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth-guard";
 import { isBannerUbicacion } from "@/lib/banners";
@@ -14,6 +14,7 @@ async function guard() {
 function revalidateBanners() {
   revalidatePath("/admin/banners");
   revalidatePath("/");
+  revalidateTag("banners", { expire: 0 });
 }
 
 function isUploadedPath(value: string | null | undefined) {

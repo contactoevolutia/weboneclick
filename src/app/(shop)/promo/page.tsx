@@ -1,8 +1,16 @@
 import Link from "next/link";
 import { getActivePromosNav, isPromoIconImage } from "@/lib/promos";
 import { uploadPublicUrl } from "@/lib/utils";
+import { pageMetadata } from "@/lib/seo/build-metadata";
+import { SEO_PAGES } from "@/lib/seo/pages-content";
 
-export const metadata = { title: "Promociones" };
+const promoSeo = SEO_PAGES["/promo"];
+
+export const metadata = pageMetadata({
+  title: promoSeo.title,
+  description: promoSeo.description,
+  path: "/promo",
+});
 
 export default async function PromoIndexPage() {
   const promos = await getActivePromosNav();

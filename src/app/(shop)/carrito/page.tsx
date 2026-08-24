@@ -11,7 +11,10 @@ import { removeFromCart } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Carrito" };
+export const metadata = {
+  title: "Carrito",
+  robots: { index: false, follow: false },
+};
 
 export default async function CarritoPage() {
   const [cart, valorEnvioGratis, cupon] = await Promise.all([

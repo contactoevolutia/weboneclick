@@ -1,8 +1,15 @@
 import { EmpresasContactForm } from "@/components/empresas-contact-form";
+import { pageMetadata } from "@/lib/seo/build-metadata";
+import { SEO_PAGES } from "@/lib/seo/pages-content";
 
 const WA = process.env.NEXT_PUBLIC_WHATSAPP_PHONE || "5493415404538";
+const seo = SEO_PAGES["/empresas"];
 
-export const metadata = { title: "Empresas" };
+export const metadata = pageMetadata({
+  title: seo.title,
+  description: seo.description,
+  path: "/empresas",
+});
 
 export default function EmpresasPage() {
   return (

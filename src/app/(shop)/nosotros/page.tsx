@@ -1,6 +1,14 @@
 import { ContactHelpBlock } from "@/components/contact-help-block";
+import { pageMetadata } from "@/lib/seo/build-metadata";
+import { SEO_PAGES } from "@/lib/seo/pages-content";
 
-export const metadata = { title: "Nosotros" };
+const seo = SEO_PAGES["/nosotros"];
+
+export const metadata = pageMetadata({
+  title: seo.title,
+  description: seo.description,
+  path: "/nosotros",
+});
 
 const VALORES = [
   {

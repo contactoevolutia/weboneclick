@@ -41,7 +41,16 @@ const nextConfig: NextConfig = {
     },
   },
   async redirects() {
-    return hostCanonicalRedirects();
+    return [
+      ...hostCanonicalRedirects(),
+      // Aliases legacy → permanentes (308). Antes eran redirect() 307 en page stubs.
+      { source: "/catalogo", destination: "/shop", permanent: true },
+      { source: "/catalogo/:path*", destination: "/shop", permanent: true },
+      { source: "/finalizar-compra", destination: "/checkout", permanent: true },
+      { source: "/finalizar-compra/:path*", destination: "/checkout", permanent: true },
+      { source: "/mi-cuenta", destination: "/cuenta", permanent: true },
+      { source: "/mi-cuenta/:path*", destination: "/cuenta", permanent: true },
+    ];
   },
 };
 

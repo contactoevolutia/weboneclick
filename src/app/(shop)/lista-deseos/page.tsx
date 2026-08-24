@@ -5,6 +5,11 @@ import { ProductCard } from "@/components/product-card";
 import { pickCurrentPriceInfo } from "@/lib/products";
 import { getDescuentoContadoConfig } from "@/lib/parametros";
 
+export const metadata = {
+  title: "Lista de deseos",
+  robots: { index: false, follow: false },
+};
+
 export default async function ListaDeseosPage() {
   const session = await auth();
   const email = session?.user?.email?.toLowerCase();

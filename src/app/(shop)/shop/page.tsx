@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ProductCard } from "@/components/product-card";
 import { ShopSidebar } from "@/components/shop-sidebar";
@@ -11,10 +12,12 @@ import {
 } from "@/lib/products";
 import { prisma } from "@/lib/prisma";
 import { getDescuentoContadoConfig } from "@/lib/parametros";
+import {
+  listingSeoFromSearchParams,
+  pageMetadata,
+} from "@/lib/seo/build-metadata";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-
-export const metadata = { title: "Tienda" };
 
 function param(sp: Record<string, string | string[] | undefined>, key: string) {
   const v = sp[key];
@@ -26,6 +29,25 @@ function parseOrder(raw?: string): ShopOrder {
     return raw;
   }
   return "ultimos";
+}
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}): Promise<Metadata> {
+  const sp = await searchParams;
+  const listing = listingSeoFromSearchParams("/shop", sp);
+  const q = typeof sp.q === "string" ? sp.q.trim() : "";
+  const baseTitle = q ? `Buscar “${q}”` : "Tienda Apple y Audio";
+  return pageMetadata({
+    title: `${baseTitle}${listing.titleSuffix} | OneClick`,
+    description:
+      "Explorá el catálogo completo de OneClick: iPhone, Mac, iPad, AirPods, Apple Watch, JBL y accesorios con garantía oficial.",
+    path: "/shop",
+    canonicalPath: listing.canonicalPath,
+    robots: listing.robots,
+  });
 }
 
 export default async function ShopPage({ searchParams }: { searchParams: SearchParams }) {
@@ -93,6 +115,7 @@ export default async function ShopPage({ searchParams }: { searchParams: SearchP
               </>
             )}
           </nav>
+          <h1>Tienda</h1>
         </div>
 
         <div className="oc-shop-layout">
