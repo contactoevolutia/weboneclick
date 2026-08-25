@@ -110,8 +110,10 @@ export async function POST(req: NextRequest) {
         ok: true,
         preferenceId: result.preferenceId,
         init_point: result.init_point,
+        open_url: result.open_url,
         confirmation_url: result.confirmation_url,
         id_venta: result.id_venta,
+        max_installments: result.max_installments,
       });
     } catch (error) {
       console.error("[mercadopago/preference] mp:", error);

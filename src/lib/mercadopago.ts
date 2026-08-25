@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import MercadoPagoConfig, {
   MerchantOrder,
   Payment,
+  PaymentRefund,
   Preference,
 } from "mercadopago";
 
@@ -36,6 +37,10 @@ export function mercadoPagoPayment() {
 
 export function mercadoPagoMerchantOrder() {
   return new MerchantOrder(client());
+}
+
+export function mercadoPagoPaymentRefund() {
+  return new PaymentRefund(client());
 }
 
 export function publicSiteUrl(): string {

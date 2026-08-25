@@ -118,6 +118,8 @@ export function CheckoutPaymentOptions({
     null,
   );
   const [qr, setQr] = useState<{
+    /** Landing OneClick → Checkout Pro (codificar en el QR). */
+    open_url: string;
     init_point: string;
     confirmation_url: string;
   } | null>(null);
@@ -215,6 +217,8 @@ export function CheckoutPaymentOptions({
   async function createPreference(flow: "wallet" | "qr" = "wallet"): Promise<{
     preferenceId: string;
     init_point: string;
+    /** Landing propia → Checkout Pro; usar en QR para no perder el tope de cuotas. */
+    open_url: string;
     confirmation_url: string;
   }> {
     setError(null);
@@ -240,6 +244,7 @@ export function CheckoutPaymentOptions({
     const data = await readJsonResponse<{
       preferenceId?: string;
       init_point?: string;
+      open_url?: string;
       confirmation_url?: string;
       error?: string;
     }>(res);
@@ -251,6 +256,7 @@ export function CheckoutPaymentOptions({
     return {
       preferenceId: data.preferenceId,
       init_point: data.init_point,
+      open_url: data.open_url || data.init_point,
       confirmation_url: data.confirmation_url || data.init_point,
     };
   }
@@ -307,6 +313,7 @@ export function CheckoutPaymentOptions({
     try {
       const pref = await createPreference("qr");
       setQr({
+        open_url: pref.open_url,
         init_point: pref.init_point,
         confirmation_url: pref.confirmation_url,
       });
@@ -423,18 +430,18 @@ export function CheckoutPaymentOptions({
               {qr ? (
                 <div className="oc-checkout-qr-box">
                   <p>
-                    Pedido creado. Escaneá el código con el celular para abrir el
-                    pago en Mercado Pago:
+                    Pedido creado. Escaneá el código con la cámara del celular
+                    (no con el lector de la app Mercado Pago) para abrir el pago:
                   </p>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(qr.init_point)}`}
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(qr.open_url)}`}
                     alt="Código QR para pagar con Mercado Pago en el celular"
                     width={180}
                     height={180}
                   />
                   <p className="oc-checkout-note">
-                    <a href={qr.init_point} target="_blank" rel="noreferrer">
+                    <a href={qr.open_url} target="_blank" rel="noreferrer">
                       Abrir link de pago
                     </a>
                     {" · "}
@@ -471,7 +478,7 @@ export function CheckoutPaymentOptions({
                   setQrLoading(true);
                   try {
                     const pref = await createPreference("qr");
-                    window.location.href = pref.init_point;
+                    window.location.href = pref.open_url;
                   } catch {
                     // error ya seteado
                   } finally {

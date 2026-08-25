@@ -1,9 +1,13 @@
 import type { PaymentResponse } from "mercadopago/dist/clients/payment/commonTypes";
-import { deductStock } from "@/lib/cart";
+import {
+  deductStock,
+  maxInstallmentsFromCuotas,
+} from "@/lib/cart";
 import { releaseCuponForVenta } from "@/lib/cupones";
 import {
   isMercadoPagoConfigured,
   mercadoPagoPayment,
+  mercadoPagoPaymentRefund,
 } from "@/lib/mercadopago";
 import { sendOrderConfirmationEmail } from "@/lib/order-mail";
 import { syncVentaToOdoo } from "@/lib/odoo-venta";
@@ -27,6 +31,118 @@ function money(n: number | string | { toString(): string } | null | undefined) {
 
 function almostEqual(a: number, b: number, tol = 0.01) {
   return Math.abs(a - b) <= tol;
+}
+
+/** Contado = 1; cuotas = menor cuotas_max de los productos de la venta. */
+async function maxInstallmentsForVentaPago(
+  tipoPago: string,
+  productIds: number[],
+): Promise<number> {
+  if (tipoPago === "mercado_pago") return 1;
+  const ids = [...new Set(productIds.filter((id) => id > 0))];
+  if (ids.length === 0) return 1;
+  const rows = await prisma.producto.findMany({
+    where: { id_producto: { in: ids } },
+    select: { cuotas_max: true },
+  });
+  return maxInstallmentsFromCuotas(rows.map((r) => r.cuotas_max));
+}
+
+/**
+ * Si MP acreditó más cuotas de las permitidas (p. ej. cobro in-store vía QR
+ * de la app), reembolsa y no marca la venta como pagada.
+ */
+async function rejectOverInstallments(opts: {
+  payment: PaymentResponse;
+  idVenta: number;
+  tipoPago: string;
+  maxAllowed: number;
+  paidInstallments: number;
+}): Promise<"rejected"> {
+  const { payment, idVenta, maxAllowed, paidInstallments } = opts;
+  const transactionId = String(payment.id ?? "").trim();
+  const motivo =
+    `MP cuotas inválidas: cobrado en ${paidInstallments} cuota(s), ` +
+    `máximo permitido ${maxAllowed} (modo ${opts.tipoPago}). Reembolso automático.`;
+
+  console.error("[mp-payment-sync] installments mismatch", {
+    idVenta,
+    paymentId: transactionId,
+    paidInstallments,
+    maxAllowed,
+  });
+
+  try {
+    await mercadoPagoPaymentRefund().total({
+      payment_id: payment.id!,
+      requestOptions: {
+        idempotencyKey: `refund-installments-${transactionId}`,
+      },
+    });
+  } catch (err) {
+    console.error("[mp-payment-sync] refund failed", { idVenta, err });
+    await prisma.venta
+      .update({
+        where: { id_venta: idVenta },
+        data: {
+          odoo_sync_error: `${motivo} (falló el reembolso automático; revisar en MP)`,
+        },
+      })
+      .catch(() => undefined);
+    throw new Error(motivo);
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.pago.findUnique({
+      where: { transaction_id: transactionId },
+    });
+    if (existing) {
+      await tx.pago.update({
+        where: { id_pago: existing.id_pago },
+        data: {
+          estado: "rechazado",
+          monto: money(payment.transaction_amount),
+        },
+      });
+    } else {
+      const shell = await tx.pago.findFirst({
+        where: {
+          id_venta: idVenta,
+          tipo_pago: { in: [...MP_TIPOS] },
+          transaction_id: null,
+          estado: { not: "aprobado" },
+        },
+        orderBy: { id_pago: "asc" },
+      });
+      if (shell) {
+        await tx.pago.update({
+          where: { id_pago: shell.id_pago },
+          data: {
+            estado: "rechazado",
+            monto: money(payment.transaction_amount),
+            transaction_id: transactionId,
+          },
+        });
+      } else {
+        await tx.pago.create({
+          data: {
+            id_venta: idVenta,
+            tipo_pago: opts.tipoPago,
+            estado: "rechazado",
+            monto: money(payment.transaction_amount),
+            transaction_id: transactionId,
+            referencia: null,
+          },
+        });
+      }
+    }
+    await tx.venta.update({
+      where: { id_venta: idVenta },
+      data: { odoo_sync_error: motivo },
+    });
+  });
+
+  return "rejected";
 }
 
 /**
@@ -77,6 +193,21 @@ export async function applyMercadoPagoPayment(
       ?.tipo_pago ?? "mercado_pago";
 
   if (status === "approved") {
+    const paidInstallments = Math.max(1, Number(payment.installments ?? 1) || 1);
+    const maxAllowed = await maxInstallmentsForVentaPago(
+      tipoPago,
+      venta.detalles.map((d) => d.id_producto),
+    );
+    if (paidInstallments > maxAllowed) {
+      return rejectOverInstallments({
+        payment,
+        idVenta,
+        tipoPago,
+        maxAllowed,
+        paidInstallments,
+      });
+    }
+
     let shouldSyncOdoo = false;
     let covered = false;
 

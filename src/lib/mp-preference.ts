@@ -23,8 +23,15 @@ import { prisma } from "@/lib/prisma";
 export type CreatePreferenceResult = {
   preferenceId: string;
   init_point: string;
+  /**
+   * URL en nuestro dominio que redirige al checkout MP.
+   * El QR debe usar esta (no el init_point): si se escanea con la app de MP,
+   * un init_point directo suele generar un cobro in-store sin tope de cuotas.
+   */
+  open_url: string;
   confirmation_url: string;
   id_venta: number;
+  max_installments: number;
 };
 
 export type CreatePreferenceOptions = {
@@ -73,6 +80,19 @@ function paymentMethodsForPreference(installments: number) {
   };
 }
 
+/** Landing propia → redirect a Checkout Pro (para QR / link móvil). */
+export function mpOpenPath(
+  id_venta: number,
+  access_token: string,
+  preferenceId: string,
+) {
+  const q = new URLSearchParams({
+    t: access_token,
+    pref: preferenceId,
+  });
+  return `/checkout/mp-open/${id_venta}?${q.toString()}`;
+}
+
 /**
  * Crea (o reutiliza) una preference de Mercado Pago para Wallet / Checkout Pro.
  * Contado (`mercado_pago`): 1 cuota. Cuotas (`tarjeta`): hasta maxInstallments
@@ -102,16 +122,31 @@ export async function createOrReuseMercadoPagoPreference(
     where: { id_venta: venta.id_venta, tipo_pago },
     select: { referencia: true },
   });
+
+  const buildResult = (preferenceId: string, init_point: string) => {
+    const openPath = mpOpenPath(
+      venta.id_venta,
+      venta.access_token,
+      preferenceId,
+    );
+    return {
+      preferenceId,
+      init_point,
+      open_url: `${siteUrl}${openPath}`,
+      confirmation_url,
+      id_venta: venta.id_venta,
+      max_installments: installments,
+    };
+  };
+
   // Wallet Brick: reutilizar la preference (purpose wallet_purchase).
   // QR: nunca reutilizar esa preference; Checkout Pro necesita la suya con `installments`.
   if (pagoExistente?.referencia && !options?.guestCheckout) {
     const preferenceId = pagoExistente.referencia;
-    return {
+    return buildResult(
       preferenceId,
-      init_point: `https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=${encodeURIComponent(preferenceId)}`,
-      confirmation_url,
-      id_venta: venta.id_venta,
-    };
+      `https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=${encodeURIComponent(preferenceId)}`,
+    );
   }
 
   const src = toMpPayerSource(venta);
@@ -128,9 +163,13 @@ export async function createOrReuseMercadoPagoPreference(
     metadata: {
       id_venta: String(venta.id_venta),
       max_installments: String(installments),
+      checkout_flow: options?.guestCheckout ? "qr" : "wallet",
+      tipo_pago,
     },
     statement_descriptor: "ONECLICK",
     payment_methods,
+    // Contado: binary_mode evita estados pending raros; no afecta cuotas por sí solo.
+    ...(installments === 1 ? { binary_mode: true } : {}),
     ...(publicHttps
       ? {
           back_urls: {
@@ -197,12 +236,7 @@ export async function createOrReuseMercadoPagoPreference(
     data: { referencia: preference.id },
   });
 
-  return {
-    preferenceId: preference.id,
-    init_point: preference.init_point,
-    confirmation_url,
-    id_venta: venta.id_venta,
-  };
+  return buildResult(preference.id, preference.init_point);
 }
 
 /** Tras crear preference: limpia carrito/cupón e idempotency para el siguiente pedido. */
