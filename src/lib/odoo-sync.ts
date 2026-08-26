@@ -3,6 +3,7 @@ import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { normalizeProductHtml } from "@/lib/normalize-product-html";
 import {
   executeKw,
   getOdooReadContext,
@@ -179,7 +180,7 @@ async function ensureUniqueSlug(
 function pickEcommerceDescription(row: OdooProduct, fallbackTitle: string): string {
   const candidates = [row.description_ecommerce, row.website_description, row.description_sale];
   for (const value of candidates) {
-    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "string" && value.trim()) return normalizeProductHtml(value);
   }
   return fallbackTitle;
 }
