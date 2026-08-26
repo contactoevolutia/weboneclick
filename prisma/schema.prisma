@@ -219,6 +219,24 @@ model producto {
   promociones     promocion_producto[]
   regalos         regalo_producto[]
   secciones       seccion_producto[]
+  relaciones      productos_relacionados[] @relation("relaciones_origen")
+  relacionado_de  productos_relacionados[] @relation("relaciones_destino")
+}
+
+/// Cross-sell / accesorios desde Odoo (accessory_product_ids)
+model productos_relacionados {
+  id_producto             Int
+  id_producto_relacionado Int
+  /// Por ahora: "accesorio"
+  tipo_relacion           String @db.VarChar(50)
+  orden                   Int    @default(0)
+
+  producto    producto @relation("relaciones_origen", fields: [id_producto], references: [id_producto], onDelete: Cascade)
+  relacionado producto @relation("relaciones_destino", fields: [id_producto_relacionado], references: [id_producto], onDelete: Cascade)
+
+  @@id([id_producto, id_producto_relacionado, tipo_relacion])
+  @@index([id_producto, tipo_relacion])
+  @@map("productos_relacionados")
 }
 
 /// Secciones de productos de la home (Destacados, Fiesta, Potenciá iPhone)

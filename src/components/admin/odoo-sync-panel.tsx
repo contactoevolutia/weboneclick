@@ -21,7 +21,7 @@ const ACTIONS: SyncAction[] = [
   {
     type: "productos",
     label: "Sincronizar productos",
-    help: "Precios, altas/bajas, categorías, almacenes, marcas y etiquetas.",
+    help: "Precios, altas/bajas, categorías, almacenes, marcas, etiquetas y accesorios.",
   },
   {
     type: "imagenes",
@@ -39,6 +39,7 @@ function emptyAccStats(): SyncStats {
     productos: { created: 0, updated: 0, deactivated: 0, images: 0 },
     precios: { inserted: 0 },
     stock: { upserted: 0 },
+    relaciones: { updated: 0 },
     errors: [],
     dryRun: false,
   };
@@ -71,6 +72,7 @@ function mergeStats(acc: SyncStats, batch: SyncStats): SyncStats {
     },
     precios: { inserted: acc.precios.inserted + batch.precios.inserted },
     stock: { upserted: acc.stock.upserted + batch.stock.upserted },
+    relaciones: { updated: acc.relaciones.updated + batch.relaciones.updated },
     errors: [...acc.errors, ...batch.errors],
   };
 }
@@ -86,6 +88,7 @@ function formatSummary(type: SyncType, stats: SyncStats): string {
     `Productos +${stats.productos.created} / ~${stats.productos.updated}`,
     `desactivados ${stats.productos.deactivated}`,
     `precios ${stats.precios.inserted}`,
+    `accesorios ${stats.relaciones.updated}`,
   ].join(" · ");
 }
 

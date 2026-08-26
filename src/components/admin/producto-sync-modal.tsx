@@ -165,6 +165,8 @@ export function ProductoSyncModal() {
                     stock {result.stats.stock.upserted}
                     {" · "}
                     imágenes {result.stats.productos.images}
+                    {" · "}
+                    accesorios {result.stats.relaciones.updated}
                   </span>
                   {result.id_producto != null && (
                     <Link href={`/admin/productos/${result.id_producto}`}>

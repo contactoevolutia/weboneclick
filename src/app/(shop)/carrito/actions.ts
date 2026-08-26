@@ -11,6 +11,7 @@ import {
   type CartLine,
 } from "@/lib/cart";
 import { getActiveProducts, pickCurrentPriceInfo, precioEfectivo } from "@/lib/products";
+import { TIPO_RELACION_ACCESORIO } from "@/lib/productos-relacionados";
 import { uploadPublicUrl } from "@/lib/utils";
 
 async function getStockState(id_producto: number): Promise<{
@@ -101,7 +102,6 @@ export async function addToCartWithSummary(input: {
         include: { archivo: true },
         take: 1,
       },
-      categorias: true,
     },
   });
   if (!product) return { ok: false, error: "Producto no disponible" };
@@ -123,13 +123,27 @@ export async function addToCartWithSummary(input: {
 
   const cart = await resolveCart();
 
-  // "Generalmente se compran junto con…": productos de la misma categoría
-  const categoriaId = product.categorias[0]?.id_categoria;
+  // "Generalmente se compran junto con…": accesorios Odoo (productos_relacionados)
+  const relaciones = await prisma.productos_relacionados.findMany({
+    where: {
+      id_producto,
+      tipo_relacion: TIPO_RELACION_ACCESORIO,
+      id_producto_relacionado: { not: id_producto },
+    },
+    orderBy: { orden: "asc" },
+    select: { id_producto_relacionado: true },
+  });
+  const relatedIds = relaciones.map((r) => r.id_producto_relacionado);
   let related: Extract<AddToCartSummary, { ok: true }>["related"] = [];
-  if (categoriaId) {
-    const { items } = await getActiveProducts({ categoriaId, take: 10 });
-    related = items
-      .filter((p) => p.id_producto !== id_producto)
+  if (relatedIds.length) {
+    const { items } = await getActiveProducts({
+      ids: relatedIds,
+      take: Math.min(8, relatedIds.length),
+    });
+    const byId = new Map(items.map((p) => [p.id_producto, p]));
+    related = relatedIds
+      .map((id) => byId.get(id))
+      .filter((p): p is NonNullable<typeof p> => p != null)
       .slice(0, 8)
       .map((p) => ({
         id_producto: p.id_producto,

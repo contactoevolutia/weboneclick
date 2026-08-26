@@ -10,6 +10,8 @@ export type SyncStats = {
   productos: { created: number; updated: number; deactivated: number; images: number };
   precios: { inserted: number };
   stock: { upserted: number };
+  /** Productos principales a los que se les actualizó la lista de relaciones (accesorios). */
+  relaciones: { updated: number };
   errors: string[];
   dryRun: boolean;
   /** true si el sync no corrió porque ya había otro en curso (lock). */
