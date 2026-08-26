@@ -153,6 +153,31 @@ function addressesMatch(
 }
 
 /**
+ * Partner ya facturado (AFIP): campos en hash → Odoo rechaza write.
+ * Reutilizar el contacto y seguir con la orden.
+ */
+function isOdooPartnerLockedError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  return /no puede editar|ya est[aá]n en un hash|fields already hashed|cannot modify/i.test(
+    msg,
+  );
+}
+
+/** write de res.partner; si está bloqueado por factura AFIP, no aborta el sync. */
+async function writePartnerUnlessLocked(
+  ids: number[],
+  values: Record<string, unknown>,
+): Promise<"ok" | "locked"> {
+  try {
+    await odooWrite("res.partner", ids, values);
+    return "ok";
+  } catch (error) {
+    if (isOdooPartnerLockedError(error)) return "locked";
+    throw error;
+  }
+}
+
+/**
  * Contacto hijo (invoice/delivery) con la dirección indicada.
  * Si ya existe uno con misma calle+CP, lo reutiliza y actualiza datos.
  */
@@ -182,7 +207,7 @@ async function upsertChildAddressContact(
     ["zip", "=", zip],
   ]);
   if (existing[0]) {
-    await odooWrite("res.partner", [existing[0]], values);
+    await writePartnerUnlessLocked([existing[0]], values);
     return existing[0];
   }
   return odooCreate("res.partner", values);
@@ -284,14 +309,14 @@ async function upsertOdooPartner(
   };
 
   if (partnerId) {
-    // Actualizar siempre identidad + dirección de facturación en el partner
-    // comercial (evita quedar con una dirección de envío vieja).
+    // Actualizar identidad + dirección de facturación si Odoo lo permite.
+    // Si el partner ya tiene factura AFIP (campos en hash), reutilizar sin write.
     const patch: Record<string, unknown> = { ...baseValues };
     for (const [k, v] of Object.entries(patch)) {
       if (v === false || v == null) delete patch[k];
     }
     if (Object.keys(patch).length) {
-      await odooWrite("res.partner", [partnerId], patch);
+      await writePartnerUnlessLocked([partnerId], patch);
     }
   } else {
     partnerId = await odooCreate("res.partner", baseValues);
