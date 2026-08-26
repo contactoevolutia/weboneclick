@@ -1,4 +1,4 @@
-# OneClick Store — web-oneclick.
+# OneClick Store — web-oneclick
 
 Sitio web de **[OneClick](https://www.oneclickstore.com/)** (Apple Premium Reseller): catálogo público sincronizado con Odoo, carrito/checkout, páginas institucionales y panel de administración.
 
