@@ -25,6 +25,7 @@ const links = [
   { href: "/admin/beneficios", label: "Beneficios" },
   { href: "/admin/almacenes", label: "Almacenes" },
   { href: "/admin/caracteristicas", label: "Características" },
+  { href: "/admin/newsletter", label: "Newsletter" },
   { href: "/admin/usuarios", label: "Usuarios" },
 ];
 

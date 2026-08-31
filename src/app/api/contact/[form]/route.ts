@@ -4,6 +4,7 @@ import {
   isContactFormId,
 } from "@/lib/contact-forms";
 import { isMailConfigured, sendMail } from "@/lib/mail";
+import { prisma } from "@/lib/prisma";
 import { rateLimit, rateLimitClientKey } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -64,7 +65,9 @@ export async function POST(
     );
   }
 
-  if (!isMailConfigured()) {
+  const isNewsletter = formParam === "newsletter";
+
+  if (!isNewsletter && !isMailConfigured()) {
     return NextResponse.json(
       { error: "El envío de correo no está configurado en el servidor." },
       { status: 503 },
@@ -77,6 +80,28 @@ export async function POST(
     ({ fields, files } = await parseBody(req));
   } catch {
     return NextResponse.json({ error: "No se pudo leer el formulario" }, { status: 400 });
+  }
+
+  // El newsletter no envía mail: se guarda la suscripción en la base.
+  if (isNewsletter) {
+    const email = (fields.email || "").trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ error: "Email inválido" }, { status: 400 });
+    }
+    try {
+      await prisma.newsletter_suscripcion.upsert({
+        where: { email },
+        create: { email },
+        update: {},
+      });
+    } catch (err) {
+      console.error("[contact] newsletter upsert failed", err);
+      return NextResponse.json(
+        { error: "No pudimos registrar tu suscripción. Intentá de nuevo más tarde." },
+        { status: 502 },
+      );
+    }
+    return NextResponse.json({ ok: true });
   }
 
   const built = await buildContactPayload(formParam, fields, files);

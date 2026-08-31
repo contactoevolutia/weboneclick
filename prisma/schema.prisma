@@ -690,3 +690,16 @@ model menu_item_hijo {
   @@index([id_menu_item, activo, orden])
   @@index([id_categoria])
 }
+
+/// Suscripciones al newsletter cargadas desde el formulario público
+model newsletter_suscripcion {
+  id_newsletter_suscripcion Int       @id @default(autoincrement())
+  email                     String    @unique @db.VarChar(255)
+  /// "pendiente" | "exportado"
+  estado                    String    @default("pendiente") @db.VarChar(20)
+  creado_en                 DateTime  @default(now())
+  exportado_en              DateTime?
+
+  @@index([estado])
+  @@index([creado_en])
+}
