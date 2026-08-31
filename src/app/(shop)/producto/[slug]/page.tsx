@@ -264,7 +264,11 @@ export default async function ProductoPage({ params }: { params: Params }) {
           ) : (
             <>
               <p className="oc-pdp-oos-label">Sin existencias</p>
-              <ProductReserveForm productTitle={product.titulo} productSku={product.sku} />
+              <ProductReserveForm
+                productId={product.id_producto}
+                productTitle={product.titulo}
+                productSku={product.sku}
+              />
               <WishlistLink />
 
               <div className="oc-pdp-reserve-now">

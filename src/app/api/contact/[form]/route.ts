@@ -104,6 +104,27 @@ export async function POST(
     return NextResponse.json({ ok: true });
   }
 
+  // Aviso de stock: además del mail interno, se registra el pedido para notificar al cliente.
+  if (formParam === "aviso-stock") {
+    const email = (fields.email || "").trim().toLowerCase();
+    const idProducto = Number(fields.productId);
+    if (Number.isInteger(idProducto) && idProducto > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      try {
+        await prisma.aviso_stock.upsert({
+          where: { id_producto_email: { id_producto: idProducto, email } },
+          create: { id_producto: idProducto, email },
+          update: { estado: "pendiente", notificado_en: null, creado_en: new Date() },
+        });
+      } catch (err) {
+        console.error("[contact] aviso-stock upsert failed", err);
+        return NextResponse.json(
+          { error: "No pudimos registrar tu aviso. Intentá de nuevo más tarde." },
+          { status: 502 },
+        );
+      }
+    }
+  }
+
   const built = await buildContactPayload(formParam, fields, files);
   if (!built.ok) {
     return NextResponse.json({ error: built.error }, { status: 400 });
@@ -113,6 +134,10 @@ export async function POST(
     await sendMail(built.payload);
   } catch (err) {
     console.error("[contact] sendMail failed", formParam, err);
+    // El aviso de stock ya quedó registrado: el mail interno es secundario.
+    if (formParam === "aviso-stock") {
+      return NextResponse.json({ ok: true });
+    }
     return NextResponse.json(
       { error: "No pudimos enviar el mensaje. Intentá de nuevo más tarde." },
       { status: 502 },

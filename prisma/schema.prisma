@@ -223,6 +223,7 @@ model producto {
   secciones       seccion_producto[]
   relaciones      productos_relacionados[] @relation("relaciones_origen")
   relacionado_de  productos_relacionados[] @relation("relaciones_destino")
+  avisos_stock    aviso_stock[]
 }
 
 /// Cross-sell / accesorios desde Odoo (accessory_product_ids)
@@ -700,6 +701,23 @@ model newsletter_suscripcion {
   creado_en                 DateTime  @default(now())
   exportado_en              DateTime?
 
+  @@index([estado])
+  @@index([creado_en])
+}
+
+/// Pedidos de aviso cuando un producto sin stock vuelve a estar disponible
+model aviso_stock {
+  id_aviso_stock Int       @id @default(autoincrement())
+  id_producto    Int
+  email          String    @db.VarChar(255)
+  /// "pendiente" | "notificado"
+  estado         String    @default("pendiente") @db.VarChar(20)
+  creado_en      DateTime  @default(now())
+  notificado_en  DateTime?
+
+  producto producto @relation(fields: [id_producto], references: [id_producto], onDelete: Cascade)
+
+  @@unique([id_producto, email])
   @@index([estado])
   @@index([creado_en])
 }

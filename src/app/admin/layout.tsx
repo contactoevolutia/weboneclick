@@ -26,6 +26,7 @@ const links = [
   { href: "/admin/almacenes", label: "Almacenes" },
   { href: "/admin/caracteristicas", label: "Características" },
   { href: "/admin/newsletter", label: "Newsletter" },
+  { href: "/admin/avisos-stock", label: "Avisos de stock" },
   { href: "/admin/usuarios", label: "Usuarios" },
 ];
 

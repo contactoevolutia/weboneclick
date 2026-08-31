@@ -5,11 +5,12 @@ import Link from "next/link";
 import { submitContactForm, type ContactSubmitStatus } from "@/lib/submit-contact-form";
 
 type Props = {
+  productId: number;
   productTitle: string;
   productSku?: string | null;
 };
 
-export function ProductReserveForm({ productTitle, productSku }: Props) {
+export function ProductReserveForm({ productId, productTitle, productSku }: Props) {
   const [status, setStatus] = useState<ContactSubmitStatus>("idle");
   const [error, setError] = useState<string | null>(null);
 
@@ -18,6 +19,7 @@ export function ProductReserveForm({ productTitle, productSku }: Props) {
     setStatus("loading");
     setError(null);
     const fd = new FormData(e.currentTarget);
+    fd.set("productId", String(productId));
     fd.set("productTitle", productTitle);
     if (productSku) fd.set("productSku", productSku);
     const result = await submitContactForm("aviso-stock", fd);
