@@ -40,6 +40,12 @@ function labelEntrega(tipo: string) {
   return tipo === "retiro" ? "Retiro" : tipo === "envio" ? "Envío" : tipo;
 }
 
+// Una venta puede acumular varios intentos de cobro: el aprobado manda sobre
+// los rechazados previos, y si no hay aprobado se muestra el intento más reciente.
+function pagoRelevante<T extends { estado: string }>(pagos: T[]): T | undefined {
+  return pagos.find((p) => p.estado === "aprobado") ?? pagos[0];
+}
+
 function truncateComentario(value: string | null | undefined, max = 60) {
   if (!value) return "—";
   const text = value.trim();
@@ -79,7 +85,7 @@ export default async function AdminVentasPage({ searchParams }: { searchParams: 
       where,
       include: {
         cliente: true,
-        pagos: true,
+        pagos: { orderBy: { id_pago: "desc" } },
         tienda_retiro: true,
       },
       orderBy: { fecha_hora: "desc" },
@@ -213,7 +219,7 @@ export default async function AdminVentasPage({ searchParams }: { searchParams: 
             </tr>
           ) : (
             ventas.map((v) => {
-              const pago = v.pagos[0];
+              const pago = pagoRelevante(v.pagos);
               return (
                 <tr key={v.id_venta}>
                   <td>#{v.id_venta}</td>
