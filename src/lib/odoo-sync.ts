@@ -43,6 +43,7 @@ const PRODUCT_FIELDS = [
   "default_code",
   "list_price",
   "taxed_lst_price",
+  "taxes_id",
   "x_studio_installments",
   "description_sale",
   "description_ecommerce",
@@ -95,6 +96,8 @@ type OdooProduct = {
   list_price: number;
   /** Precio de venta con impuestos incluidos (campo Odoo `taxed_lst_price`). */
   taxed_lst_price?: number;
+  /** Impuestos de venta del producto; de acá sale la alícuota IVA real. */
+  taxes_id?: number[];
   /** Límite de cuotas (Studio: "Límite de Cuotas"). Selection string p.ej. "12"|"18"|"24". */
   x_studio_installments?: string | false;
   description_sale: string | false;
@@ -744,16 +747,28 @@ function promoFieldsEqual(
 }
 
 async function loadProductLookupMaps() {
-  const [brands, tags, cats] = await Promise.all([
+  const [brands, tags, cats, taxRateByOdoo] = await Promise.all([
     prisma.marca.findMany({ where: { odoo_id: { not: null } } }),
     prisma.etiqueta.findMany({ where: { odoo_id: { not: null } } }),
     prisma.categoria.findMany({ where: { odoo_id: { not: null } } }),
+    loadSaleTaxRates(),
   ]);
   return {
     brandByOdoo: new Map(brands.map((b) => [b.odoo_id!, b.id_marca])),
     tagByOdoo: new Map(tags.map((t) => [t.odoo_id!, t.id_etiqueta])),
     catByOdoo: new Map(cats.map((c) => [c.odoo_id!, c.id_categoria])),
+    taxRateByOdoo,
   };
+}
+
+/** `account.tax.id` → alícuota en porcentaje (21, 10.5, …) de impuestos de venta. */
+async function loadSaleTaxRates(): Promise<Map<number, number>> {
+  const rows = await searchRead<{ id: number; amount: number }>(
+    "account.tax",
+    [["type_tax_use", "=", "sale"]],
+    ["id", "amount"]
+  );
+  return new Map(rows.map((r) => [r.id, Number(r.amount)]));
 }
 
 /**
@@ -838,6 +853,7 @@ async function upsertProductoRow(
     catByOdoo: Map<number, number>;
     priceByTmpl: Map<number, number>;
     promoMaps: PromoMaps;
+    taxRateByOdoo: Map<number, number>;
   }
 ): Promise<number | null> {
   const titulo = pickProductTitle(row);
@@ -845,6 +861,7 @@ async function upsertProductoRow(
   const sku = typeof row.default_code === "string" ? row.default_code : null;
   const id_marca = maps.brandByOdoo.get(m2oId(row.product_brand_id) ?? -1) ?? null;
   const cuotas_max = pickCuotasMax(row);
+  const iva_rate = resolveIvaRate(row, maps.taxRateByOdoo);
   const existing = await prisma.producto.findUnique({ where: { odoo_id: row.id } });
 
   if (stats.dryRun) {
@@ -858,7 +875,7 @@ async function upsertProductoRow(
     // No reactivar: si el producto está inactivo en el sitio, el sync no lo vuelve a activar.
     await prisma.producto.update({
       where: { id_producto: existing.id_producto },
-      data: { titulo, descripcion, sku, id_marca, cuotas_max },
+      data: { titulo, descripcion, sku, id_marca, cuotas_max, iva_rate },
     });
     id_producto = existing.id_producto;
     stats.productos.updated += 1;
@@ -876,6 +893,7 @@ async function upsertProductoRow(
         sku,
         id_marca,
         cuotas_max,
+        iva_rate,
         odoo_id: row.id,
         activo: true,
       },
@@ -921,6 +939,38 @@ async function upsertProductoRow(
   }
 
   return id_producto;
+}
+
+/**
+ * Alícuota IVA real del producto, con la misma selección que usa el alta de
+ * la orden en Odoo (`pickSaleTaxes` en odoo-venta): un solo IVA AR de venta,
+ * priorizando 21% si el producto tiene ambos. Sin eso, se deduce del cociente
+ * bruto/neto de la lista. Que este valor difiera del que aplica Odoo desalinea
+ * el total cobrado en MP contra la orden (diferencias de centavos).
+ */
+function resolveIvaRate(
+  row: { taxes_id?: number[]; taxed_lst_price?: number; list_price: number },
+  taxRateByOdoo: Map<number, number>
+): Prisma.Decimal | null {
+  const rates = (row.taxes_id ?? [])
+    .map((id) => taxRateByOdoo.get(id))
+    .filter((amount): amount is number => amount != null);
+
+  const ar = rates.filter((a) => a === 21 || a === 10.5);
+  if (ar.length) {
+    const amount = ar.includes(21) ? 21 : ar[0]!;
+    return new Prisma.Decimal(amount / 100);
+  }
+
+  const taxed = Number(row.taxed_lst_price ?? 0);
+  const net = Number(row.list_price ?? 0);
+  if (taxed > 0 && net > 0) {
+    const ratio = taxed / net - 1;
+    if (Math.abs(ratio - 0.105) < 0.002) return new Prisma.Decimal("0.105");
+    if (Math.abs(ratio - 0.21) < 0.002) return new Prisma.Decimal("0.21");
+  }
+
+  return null;
 }
 
 /**

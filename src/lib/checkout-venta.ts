@@ -3,7 +3,6 @@ import type { Prisma } from "@prisma/client";
 import {
   cartHasStockInWarehouse,
   deductStock,
-  estimateIvaRate,
   resolveCart,
   type ResolvedCart,
 } from "@/lib/cart";
@@ -412,10 +411,7 @@ export async function createPendingVenta(
   // Alinear brutos al total que Odoo calculará (IVA global), para que
   // MP / venta.total / factura coincidan al centavo.
   const aligned = alignGrossesToOdooTotal({
-    items: itemsCobroRaw.map((i) => ({
-      ...i,
-      rate: estimateIvaRate(i.titulo),
-    })),
+    items: itemsCobroRaw.map((i) => ({ ...i, rate: i.ivaRate })),
     costo_envio,
   });
   const itemsCobro = aligned.items.map(
@@ -781,6 +777,7 @@ export function computeTotals(
       id_producto: item.id_producto,
       titulo: item.titulo,
       cantidad: item.cantidad,
+      ivaRate: item.ivaRate,
       unit_price: aplicaContado
         ? round2(item.precio! * (1 - pctFactor))
         : item.precio!,
@@ -817,6 +814,7 @@ function applyFixedDiscountToItems(
     id_producto: number;
     titulo: string;
     cantidad: number;
+    ivaRate: number;
     unit_price: number;
   }[],
   discount: number,

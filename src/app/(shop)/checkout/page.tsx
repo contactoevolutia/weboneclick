@@ -14,7 +14,6 @@ import { BeginCheckoutTracker } from "@/components/funnel-trackers";
 import { computeTotals } from "@/lib/checkout-venta";
 import {
   cartMaxInstallments,
-  estimateIvaRate,
   ivaIncluded,
   resolveCart,
   resolveCheckoutEntregaDisponibilidad,
@@ -108,11 +107,11 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
 
   const itemsTarjeta: AlignGrossItem[] = totalsTarjeta.itemsCobro.map((i) => ({
     ...i,
-    rate: estimateIvaRate(i.titulo),
+    rate: i.ivaRate,
   }));
   const itemsContado: AlignGrossItem[] = totalsContado.itemsCobro.map((i) => ({
     ...i,
-    rate: estimateIvaRate(i.titulo),
+    rate: i.ivaRate,
   }));
 
   const addressDefaults =

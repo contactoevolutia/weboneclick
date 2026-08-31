@@ -32,7 +32,7 @@ export type ResolvedCartItem = {
   porcentajeDesc: number | null;
   /** Tope comercial de cuotas sin interés (Odoo x_studio_installments). */
   cuotas_max: number | null;
-  /** Alícuota IVA estimada (0.105 | 0.21) para el desglose del total */
+  /** Alícuota IVA (0.105 | 0.21): la real de Odoo si el sync la trajo, si no estimada */
   ivaRate: number;
   stockTotal: number;
   stockTracked: boolean;
@@ -79,13 +79,33 @@ export function cartMaxInstallments(items: ResolvedCartItem[]): number {
 /** Fallback si falta el parámetro valor_para_envio_gratis. */
 export const FREE_SHIPPING_THRESHOLD = 200_000;
 
-/** Alícuota IVA aproximada según tipo de producto (paridad visual WooCommerce). */
+/**
+ * Alícuota IVA aproximada según tipo de producto (paridad visual WooCommerce).
+ * Fallback: preferir `producto.iva_rate` (la real de Odoo) vía `productIvaRate`.
+ */
 export function estimateIvaRate(titulo: string): number {
   const t = titulo.toLowerCase();
   if (/\b(macbook|imac|mac mini|mac studio|mac pro|ipad|apple watch|watch series)\b/.test(t)) {
     return 0.105;
   }
   return 0.21;
+}
+
+/**
+ * Alícuota IVA del producto. Usa la sincronizada desde Odoo; si falta (producto
+ * viejo o sin impuesto AR), cae a la heurística por título.
+ *
+ * Importa que sea la real: el checkout alinea los brutos al redondeo de Odoo
+ * con esta alícuota, y si no coincide con la del producto en Odoo el total de
+ * la orden queda unos centavos arriba de lo cobrado en Mercado Pago.
+ */
+export function productIvaRate(product: {
+  titulo: string;
+  iva_rate?: Prisma.Decimal | number | null;
+}): number {
+  const rate = product.iva_rate != null ? Number(product.iva_rate) : null;
+  if (rate != null && rate > 0) return rate;
+  return estimateIvaRate(product.titulo);
 }
 
 /** IVA incluido en un precio bruto. */
@@ -224,7 +244,7 @@ export async function resolveCart(lines?: CartLine[]): Promise<ResolvedCart> {
       precioLista,
       porcentajeDesc,
       cuotas_max: product.cuotas_max,
-      ivaRate: estimateIvaRate(product.titulo),
+      ivaRate: productIvaRate(product),
       stockTotal: stock.stockTotal,
       stockTracked: stock.stockTracked,
       stockPorAlmacen,
