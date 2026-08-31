@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { submitContactForm, type ContactSubmitStatus } from "@/lib/submit-contact-form";
 
@@ -13,12 +13,23 @@ type Props = {
 export function ProductReserveForm({ productId, productTitle, productSku }: Props) {
   const [status, setStatus] = useState<ContactSubmitStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (!modalOpen) return;
+    function onKeyDown(ev: KeyboardEvent) {
+      if (ev.key === "Escape") setModalOpen(false);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [modalOpen]);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setStatus("loading");
     setError(null);
-    const fd = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const fd = new FormData(form);
     fd.set("productId", String(productId));
     fd.set("productTitle", productTitle);
     if (productSku) fd.set("productSku", productSku);
@@ -29,7 +40,8 @@ export function ProductReserveForm({ productId, productTitle, productSku }: Prop
       return;
     }
     setStatus("sent");
-    e.currentTarget.reset();
+    setModalOpen(true);
+    form.reset();
   }
 
   return (
@@ -60,12 +72,41 @@ export function ProductReserveForm({ productId, productTitle, productSku }: Prop
           </span>
         </label>
       </form>
-      {status === "sent" ? (
+      {status === "sent" && !modalOpen ? (
         <p className="muted oc-pdp-reserve-ok">
           Listo. Te avisaremos cuando el producto vuelva a estar disponible.
         </p>
       ) : null}
       {error ? <p className="muted oc-pdp-reserve-ok" style={{ color: "#c00" }}>{error}</p> : null}
+
+      {modalOpen ? (
+        <div
+          className="oc-reserve-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="oc-reserve-modal-title"
+          onClick={() => setModalOpen(false)}
+        >
+          <div className="oc-reserve-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="oc-reserve-modal-icon" aria-hidden="true">
+              ✓
+            </div>
+            <h3 id="oc-reserve-modal-title">¡Listo!</h3>
+            <p>
+              Registramos tu correo. Te avisaremos por mail apenas <strong>{productTitle}</strong>{" "}
+              vuelva a estar disponible.
+            </p>
+            <button
+              type="button"
+              className="oc-btn oc-btn-dark"
+              autoFocus
+              onClick={() => setModalOpen(false)}
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
