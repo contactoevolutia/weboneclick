@@ -106,12 +106,19 @@ function largestItemIndex(items: AlignGrossItem[]): number {
 /**
  * Ajusta envío (preferido) o la línea de mayor importe para que la suma
  * de brutos iguale el total que Odoo calculará con esos nets.
+ *
+ * Invariante: el `total` devuelto siempre es la suma de los brutos devueltos.
+ * Es lo que Mercado Pago cobra (preference = ítems + envío) y lo que se guarda
+ * en `venta.total`; si difieren, el webhook rechaza el pago por monto inválido.
  */
 export function alignGrossesToOdooTotal(
   input: AlignGrossesInput,
 ): AlignGrossesResult {
-  let items = input.items.map((i) => ({ ...i }));
-  let costo_envio = round2(Math.max(0, input.costo_envio));
+  const originalItems = input.items.map((i) => ({ ...i }));
+  const originalEnvio = round2(Math.max(0, input.costo_envio));
+
+  const items = input.items.map((i) => ({ ...i }));
+  let costo_envio = originalEnvio;
 
   for (let attempt = 0; attempt < 5; attempt++) {
     const predicted = predictOdooAmountTotal(
@@ -129,14 +136,21 @@ export function alignGrossesToOdooTotal(
     }
 
     const idx = largestItemIndex(items);
-    if (idx < 0) {
-      return { items, costo_envio, total: predicted };
-    }
+    if (idx < 0) break;
+
+    // Con cantidad > 1 el diff de 1 centavo no es divisible: mover el unitario
+    // cambia la línea de a `cantidad` centavos y el lazo oscila sin converger.
     const item = items[idx]!;
-    const newLine = Math.max(0, item.unit_price * item.cantidad + diff);
-    item.unit_price = round2(newLine / item.cantidad);
+    if (item.cantidad !== 1) break;
+    item.unit_price = round2(Math.max(0, item.unit_price + diff));
   }
 
-  const total = predictOdooAmountTotal(toPredictLines(items, costo_envio));
-  return { items, costo_envio, total };
+  // Sin convergencia se vuelve a los brutos originales y manda lo cobrado:
+  // la orden de Odoo puede quedar unos centavos arriba, pero MP, `venta.total`
+  // y el recibo siguen coincidiendo entre sí.
+  return {
+    items: originalItems,
+    costo_envio: originalEnvio,
+    total: sumGross(originalItems, originalEnvio),
+  };
 }

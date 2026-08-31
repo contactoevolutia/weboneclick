@@ -85,6 +85,48 @@ assert(
   `hub.costo_envio=${hub.costo_envio}, expected 20159.27`,
 );
 
+// Invariante que MP necesita: lo que se cobra (suma de ítems + envío) tiene
+// que ser exactamente `total`, que es lo que se guarda en venta.total.
+function assertCobroCuadra(
+  r: { items: { cantidad: number; unit_price: number }[]; costo_envio: number; total: number },
+  caso: string,
+) {
+  const cobrado = round2(
+    r.items.reduce((acc, i) => acc + i.unit_price * i.cantidad, 0) + r.costo_envio,
+  );
+  assert(
+    almost(cobrado, r.total),
+    `${caso}: MP cobraría ${cobrado} pero venta.total sería ${r.total}`,
+  );
+}
+
+assertCobroCuadra(aligned, "OCWN-42");
+assertCobroCuadra(hub, "OCWN-432");
+
+// Venta 468: 2 × Cargador Apple USB-C 20W sin envío. El centavo de diferencia
+// no es divisible entre 2 unidades; antes el lazo oscilaba y devolvía ítems
+// que sumaban 1 centavo más que `total`, MP cobraba esa suma y el webhook
+// rechazaba el pago por "monto inválido".
+for (const rate of [0.21, 0.105]) {
+  const dosUnidades = alignGrossesToOdooTotal({
+    items: [
+      {
+        id_producto: 1,
+        titulo: "Cargador Apple USB-C 20W",
+        cantidad: 2,
+        unit_price: 63999,
+        rate,
+      },
+    ],
+    costo_envio: 0,
+  });
+  assertCobroCuadra(dosUnidades, `venta 468 @${rate}`);
+  assert(
+    almost(dosUnidades.items[0]!.unit_price, 63999),
+    `venta 468 @${rate}: unitario no debería moverse, quedó ${dosUnidades.items[0]!.unit_price}`,
+  );
+}
+
 // Sin envío: si ya cuadra, no-op
 const soloProducto = alignGrossesToOdooTotal({
   items: [

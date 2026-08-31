@@ -29,8 +29,17 @@ function money(n: number | string | { toString(): string } | null | undefined) {
   return Number(n ?? 0);
 }
 
-function almostEqual(a: number, b: number, tol = 0.01) {
-  return Math.abs(a - b) <= tol;
+/**
+ * Comparar importes en centavos enteros: `Math.abs(a - b) <= 0.01` da falso
+ * para diferencias de exactamente 1 centavo (127998.02 - 127998.01 en doubles
+ * da 0.0100000000093), y eso dejaba ventas trabadas sin acreditar.
+ */
+function cents(n: number) {
+  return Math.round(n * 100);
+}
+
+function almostEqual(a: number, b: number, tolCents = 1) {
+  return Math.abs(cents(a) - cents(b)) <= tolCents;
 }
 
 /** Contado = 1; cuotas = menor cuotas_max de los productos de la venta. */
@@ -172,7 +181,7 @@ export async function applyMercadoPagoPayment(
     throw new Error(`Monto MP inválido para la venta ${idVenta}`);
   }
   // Un parcial no puede superar el total de la venta (margen de redondeo).
-  if (amount > total + 0.01) {
+  if (cents(amount) - cents(total) > 1) {
     const motivo = `MP monto inválido: cobrado ${amount} vs venta ${total}`;
     await prisma.venta
       .update({
@@ -268,7 +277,7 @@ export async function applyMercadoPagoPayment(
       });
       const sumApproved = aprobados.reduce((s, p) => s + money(p.monto), 0);
 
-      if (sumApproved + 0.01 < total) {
+      if (cents(sumApproved) + 1 < cents(total)) {
         // Aún faltan parciales (segunda tarjeta, etc.).
         await tx.venta.update({
           where: { id_venta: idVenta },
