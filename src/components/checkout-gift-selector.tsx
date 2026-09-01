@@ -14,13 +14,20 @@ export function CheckoutGiftSelector({ regalo }: Props) {
     <div className="oc-checkout-gift">
       <h3>¡Elegí tu regalo!</h3>
       <p className="oc-checkout-gift-lead">
-        Tu compra supera{" "}
-        {regalo.monto_minimo.toLocaleString("es-AR", {
-          style: "currency",
-          currency: "ARS",
-          minimumFractionDigits: 0,
-        })}
-        . Elegí uno de estos obsequios de <strong>{regalo.nombre}</strong>.
+        {regalo.monto_minimo != null ? (
+          <>
+            Tu compra supera{" "}
+            {regalo.monto_minimo.toLocaleString("es-AR", {
+              style: "currency",
+              currency: "ARS",
+              minimumFractionDigits: 0,
+            })}
+            .{" "}
+          </>
+        ) : (
+          <>Tu compra califica para un obsequio. </>
+        )}
+        Elegí uno de estos obsequios de <strong>{regalo.nombre}</strong>.
       </p>
 
       <div className="oc-checkout-gift-options" role="radiogroup" aria-label="Regalo">

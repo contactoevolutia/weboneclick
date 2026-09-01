@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth-guard";
+import { RegaloTipoFields } from "@/components/admin/regalo-tipo-fields";
 import { createRegalo } from "../actions";
 
 export default async function AdminNuevoRegaloPage() {
@@ -18,18 +19,7 @@ export default async function AdminNuevoRegaloPage() {
             <label>Nombre</label>
             <input name="nombre" required placeholder="Juguete Ditoys / Cartas selección" />
           </div>
-          <div className="form-field">
-            <label>Monto mínimo de compra</label>
-            <input
-              name="monto_minimo"
-              type="number"
-              step="0.01"
-              min="0"
-              required
-              defaultValue={750000}
-              placeholder="750000"
-            />
-          </div>
+          <RegaloTipoFields />
           <div className="form-field">
             <label>Vigencia desde</label>
             <input name="vigencia_desde" type="datetime-local" required />

@@ -220,6 +220,7 @@ model producto {
   wishlist_items  lista_deseos_item[]
   promociones     promocion_producto[]
   regalos         regalo_producto[]
+  regalo_triggers regalo_trigger_producto[]
   secciones       seccion_producto[]
   relaciones      productos_relacionados[] @relation("relaciones_origen")
   relacionado_de  productos_relacionados[] @relation("relaciones_destino")
@@ -327,6 +328,7 @@ model categoria {
   caracteristicas caracteristica_categoria[]
   familias        familia[]
   promociones     promocion_categoria[]
+  regalo_triggers regalo_trigger_categoria[]
   menu_items      menu_item[]                @relation("menu_item_categoria_rel")
   menu_hijos      menu_item_hijo[]           @relation("menu_item_hijo_categoria_rel")
 }
@@ -368,20 +370,30 @@ model promocion_producto {
   @@id([id_promocion, id_producto])
 }
 
-/// Regla de regalo por monto mínimo de compra (ej. juguete desde $750.000)
+enum RegaloTipo {
+  monto
+  sku
+  categoria
+}
+
+/// Regla de regalo (monto mínimo, SKU trigger o categoría trigger)
 model regalo {
-  id_regalo           Int       @id @default(autoincrement())
-  nombre              String    @db.VarChar(255)
-  monto_minimo        Decimal   @db.Decimal(12, 2)
+  id_regalo           Int        @id @default(autoincrement())
+  nombre              String     @db.VarChar(255)
+  tipo                RegaloTipo @default(monto)
+  prioridad           Int        @default(0)
+  monto_minimo        Decimal?   @db.Decimal(12, 2)
   vigencia_desde      DateTime
   vigencia_hasta      DateTime?
-  activo              Boolean   @default(true)
-  fecha_creacion      DateTime  @default(now())
+  activo              Boolean    @default(true)
+  fecha_creacion      DateTime   @default(now())
   id_usuario_creacion Int
-  fecha_modif         DateTime  @updatedAt
+  fecha_modif         DateTime   @updatedAt
 
-  usuario_creacion usuario           @relation("RegaloCreacion", fields: [id_usuario_creacion], references: [id_usuario])
-  productos        regalo_producto[]
+  usuario_creacion   usuario                    @relation("RegaloCreacion", fields: [id_usuario_creacion], references: [id_usuario])
+  productos          regalo_producto[]
+  trigger_productos  regalo_trigger_producto[]
+  trigger_categorias regalo_trigger_categoria[]
 
   @@index([activo, vigencia_desde])
 }
@@ -394,6 +406,28 @@ model regalo_producto {
   producto producto @relation(fields: [id_producto], references: [id_producto], onDelete: Cascade)
 
   @@id([id_regalo, id_producto])
+}
+
+/// SKUs del carrito que desbloquean el regalo (tipo sku)
+model regalo_trigger_producto {
+  id_regalo   Int
+  id_producto Int
+
+  regalo   regalo   @relation(fields: [id_regalo], references: [id_regalo], onDelete: Cascade)
+  producto producto @relation(fields: [id_producto], references: [id_producto], onDelete: Cascade)
+
+  @@id([id_regalo, id_producto])
+}
+
+/// Categorías cuyos productos en el carrito desbloquean el regalo (tipo categoria)
+model regalo_trigger_categoria {
+  id_regalo    Int
+  id_categoria Int
+
+  regalo    regalo    @relation(fields: [id_regalo], references: [id_regalo], onDelete: Cascade)
+  categoria categoria @relation(fields: [id_categoria], references: [id_categoria], onDelete: Cascade)
+
+  @@id([id_regalo, id_categoria])
 }
 
 model categoria_producto {

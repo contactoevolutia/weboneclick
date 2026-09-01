@@ -1,16 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { RegaloProductoAddModal } from "@/components/admin/regalo-producto-add-modal";
+import { RegaloTipoFields } from "@/components/admin/regalo-tipo-fields";
 import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import {
   addRegaloProducto,
+  addRegaloTriggerProducto,
   deleteRegalo,
   removeRegaloProducto,
+  removeRegaloTriggerProducto,
   updateRegalo,
+  updateRegaloTriggerCategorias,
 } from "../actions";
 
 type Params = Promise<{ id: string }>;
-type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 function toDatetimeLocal(d: Date | null) {
   if (!d) return "";
@@ -20,18 +24,13 @@ function toDatetimeLocal(d: Date | null) {
 
 export default async function AdminRegaloDetailPage({
   params,
-  searchParams,
 }: {
   params: Params;
-  searchParams: SearchParams;
 }) {
   await requireAdmin();
   const { id } = await params;
-  const sp = await searchParams;
   const id_regalo = Number(id);
   if (!Number.isFinite(id_regalo)) notFound();
-
-  const q = typeof sp.q === "string" ? sp.q.trim() : "";
 
   const regalo = await prisma.regalo.findUnique({
     where: { id_regalo },
@@ -44,25 +43,28 @@ export default async function AdminRegaloDetailPage({
           },
         },
       },
+      trigger_productos: {
+        include: {
+          producto: {
+            select: { id_producto: true, titulo: true, slug: true, sku: true },
+          },
+        },
+      },
+      trigger_categorias: true,
     },
   });
   if (!regalo) notFound();
 
-  const searchResults = q
-    ? await prisma.producto.findMany({
-        where: {
-          OR: [
-            { titulo: { contains: q } },
-            { sku: { contains: q } },
-          ],
-        },
-        select: { id_producto: true, titulo: true, slug: true, sku: true, activo: true },
-        take: 20,
-        orderBy: { titulo: "asc" },
-      })
-    : [];
+  const categorias =
+    regalo.tipo === "categoria"
+      ? await prisma.categoria.findMany({ orderBy: [{ nivel: "asc" }, { nombre: "asc" }] })
+      : [];
 
-  const linkedIds = new Set(regalo.productos.map((p) => p.id_producto));
+  const linkedIds = regalo.productos.map((p) => p.id_producto);
+  const triggerLinkedIds = regalo.trigger_productos.map((p) => p.id_producto);
+  const selectedTriggerCats = new Set(
+    regalo.trigger_categorias.map((c) => c.id_categoria),
+  );
 
   return (
     <div>
@@ -81,17 +83,13 @@ export default async function AdminRegaloDetailPage({
             <label>Nombre</label>
             <input name="nombre" defaultValue={regalo.nombre} required />
           </div>
-          <div className="form-field">
-            <label>Monto mínimo de compra</label>
-            <input
-              name="monto_minimo"
-              type="number"
-              step="0.01"
-              min="0"
-              required
-              defaultValue={Number(regalo.monto_minimo)}
-            />
-          </div>
+          <RegaloTipoFields
+            defaultTipo={regalo.tipo}
+            defaultMonto={
+              regalo.monto_minimo != null ? Number(regalo.monto_minimo) : 750000
+            }
+            defaultPrioridad={regalo.prioridad}
+          />
           <div className="form-field">
             <label>Vigencia desde</label>
             <input
@@ -120,11 +118,102 @@ export default async function AdminRegaloDetailPage({
         </form>
       </div>
 
+      {regalo.tipo === "sku" ? (
+        <div className="admin-card" style={{ marginTop: "1rem" }}>
+          <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>SKUs que desbloquean el regalo</h2>
+          <p className="muted" style={{ fontSize: "0.85rem" }}>
+            El carrito califica si contiene al menos uno de estos productos.
+          </p>
+
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>SKU</th>
+                <th>Título</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {regalo.trigger_productos.map((row) => (
+                <tr key={row.id_producto}>
+                  <td>{row.id_producto}</td>
+                  <td>{row.producto.sku ?? "—"}</td>
+                  <td>
+                    <Link href={`/admin/productos/${row.id_producto}`}>
+                      {row.producto.titulo}
+                    </Link>
+                  </td>
+                  <td>
+                    <form
+                      action={removeRegaloTriggerProducto.bind(
+                        null,
+                        id_regalo,
+                        row.id_producto,
+                      )}
+                    >
+                      <button type="submit" className="btn btn-ghost">
+                        Quitar
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              ))}
+              {!regalo.trigger_productos.length && (
+                <tr>
+                  <td colSpan={4}>Sin SKUs trigger asociados.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+
+          <RegaloProductoAddModal
+            idRegalo={id_regalo}
+            title="Agregar SKU trigger"
+            buttonLabel="Buscar producto trigger"
+            excludedIds={triggerLinkedIds}
+            addAction={addRegaloTriggerProducto}
+          />
+        </div>
+      ) : null}
+
+      {regalo.tipo === "categoria" ? (
+        <div className="admin-card" style={{ marginTop: "1rem" }}>
+          <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>Categorías que desbloquean el regalo</h2>
+          <p className="muted" style={{ fontSize: "0.85rem" }}>
+            El carrito califica si contiene al menos un producto de alguna categoría
+            seleccionada.
+          </p>
+          <form action={updateRegaloTriggerCategorias.bind(null, id_regalo)}>
+            <div className="form-field" style={{ marginBottom: "0.35rem" }}>
+              <div className="admin-cats-scroll">
+                {categorias.map((c) => (
+                  <label key={c.id_categoria} className={c.nivel > 1 ? "cat-indent" : undefined}>
+                    <input
+                      type="checkbox"
+                      name="categorias"
+                      value={c.id_categoria}
+                      defaultChecked={selectedTriggerCats.has(c.id_categoria)}
+                    />
+                    <span style={{ paddingLeft: `${Math.max(0, c.nivel - 1) * 0.55}rem` }}>
+                      {c.nombre}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <button className="btn btn-primary" type="submit">
+              Guardar categorías trigger
+            </button>
+          </form>
+        </div>
+      ) : null}
+
       <div className="admin-card" style={{ marginTop: "1rem" }}>
         <h2 style={{ marginTop: 0, fontSize: "1.1rem" }}>SKUs de regalo</h2>
         <p className="muted" style={{ fontSize: "0.85rem" }}>
-          El cliente elige uno de estos productos en el checkout cuando el carrito
-          supera el monto mínimo.
+          El cliente elige uno de estos productos en el checkout cuando califica la
+          condición del regalo.
         </p>
 
         <table className="admin-table">
@@ -169,55 +258,13 @@ export default async function AdminRegaloDetailPage({
           </tbody>
         </table>
 
-        <h3 style={{ fontSize: "1rem" }}>Buscar y agregar producto</h3>
-        <form method="get" className="search-form" style={{ marginBottom: "1rem" }}>
-          <input name="q" defaultValue={q} placeholder="Título o SKU…" />
-          <button className="btn btn-secondary" type="submit">
-            Buscar
-          </button>
-        </form>
-
-        {q && (
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>SKU</th>
-                <th>Título</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {searchResults.map((p) => (
-                <tr key={p.id_producto}>
-                  <td>{p.id_producto}</td>
-                  <td>{p.sku ?? "—"}</td>
-                  <td>
-                    {p.titulo}
-                    {!p.activo && <span className="muted"> (inactivo)</span>}
-                  </td>
-                  <td>
-                    {linkedIds.has(p.id_producto) ? (
-                      <span className="muted">Ya asociado</span>
-                    ) : (
-                      <form action={addRegaloProducto.bind(null, id_regalo)}>
-                        <input type="hidden" name="id_producto" value={p.id_producto} />
-                        <button type="submit" className="btn btn-secondary">
-                          Agregar
-                        </button>
-                      </form>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {!searchResults.length && (
-                <tr>
-                  <td colSpan={4}>No hay resultados para &quot;{q}&quot;.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        )}
+        <RegaloProductoAddModal
+          idRegalo={id_regalo}
+          title="Agregar SKU de regalo"
+          buttonLabel="Buscar producto de regalo"
+          excludedIds={linkedIds}
+          addAction={addRegaloProducto}
+        />
       </div>
 
       <form action={deleteRegalo.bind(null, id_regalo)} style={{ marginTop: "1rem" }}>

@@ -39,7 +39,7 @@ import type { DescuentoContadoConfig } from "@/lib/parametros";
 import { getDescuentoContadoConfig } from "@/lib/parametros";
 import { prisma } from "@/lib/prisma";
 import { ALMACEN_WEB_SELECT, sumSellableStock, type StockRow } from "@/lib/almacenes";
-import { resolveSelectedRegaloProducto } from "@/lib/regalos";
+import { regaloCartContext, resolveSelectedRegaloProducto } from "@/lib/regalos";
 
 export type TipoPagoCheckout = "tarjeta" | "mercado_pago";
 
@@ -394,7 +394,10 @@ export async function createPendingVenta(
     Number.isFinite(idProductoRegaloRaw) && idProductoRegaloRaw > 0
       ? idProductoRegaloRaw
       : null;
-  const giftProducto = await resolveSelectedRegaloProducto(subtotal, idProductoRegalo);
+  const giftProducto = await resolveSelectedRegaloProducto(
+    regaloCartContext(cart),
+    idProductoRegalo,
+  );
 
   let costo_envio = 0;
   if (tipo_entrega === "envio") {

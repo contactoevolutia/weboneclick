@@ -156,6 +156,7 @@ async function ensureRegaloRule(opts: {
   let regalo = await prisma.regalo.findFirst({
     where: {
       activo: true,
+      tipo: "monto",
       monto_minimo: { lte: opts.montoMinimo },
       vigencia_desde: { lte: now },
       OR: [{ vigencia_hasta: null }, { vigencia_hasta: { gte: now } }],
@@ -168,6 +169,7 @@ async function ensureRegaloRule(opts: {
     regalo = await prisma.regalo.create({
       data: {
         nombre: "Test Odoo — Regalo automático",
+        tipo: "monto",
         monto_minimo: Math.min(opts.montoMinimo, 1),
         vigencia_desde: now,
         vigencia_hasta: null,

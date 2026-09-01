@@ -28,7 +28,7 @@ import {
 } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
 import { isMercadoPagoConfigured } from "@/lib/mercadopago";
-import { getRegaloApplicable } from "@/lib/regalos";
+import { getRegaloApplicable, regaloCartContext } from "@/lib/regalos";
 import { continueAsGuest, continueWithGoogle } from "./identity-actions";
 
 export const dynamic = "force-dynamic";
@@ -103,7 +103,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
     descuentoMonto: totalsContado.descuentoContado,
     parcial: descuentoContadoParcial,
   });
-  const regalo = await getRegaloApplicable(cart.subtotal);
+  const regalo = await getRegaloApplicable(regaloCartContext(cart));
 
   const itemsTarjeta: AlignGrossItem[] = totalsTarjeta.itemsCobro.map((i) => ({
     ...i,
