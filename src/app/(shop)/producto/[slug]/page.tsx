@@ -38,6 +38,12 @@ import {
   type ProductFeature,
 } from "@/lib/macbook-neo";
 import {
+  getExperienceImages,
+  getGalleryExtras,
+  tieneGaleriaCurada,
+} from "@/lib/galeria-mock";
+import { completarBloques, limpiarDescripcion } from "@/lib/descripcion-mock";
+import {
   bloquesCaracteristicas,
   getPdpTemplate,
   mostrarAccesorios,
@@ -648,6 +654,9 @@ export default async function ProductoPage({ params }: { params: Params }) {
   const isMacbookNeo = neo.inCategory;
   const current = neo.current;
   const specChips = parseSpecChips(product.titulo);
+  // La descripción baja de Odoo; para los productos de muestra se le
+  // recortan las frases que no van en la ficha. Ver descripcion-mock.
+  const descripcion = limpiarDescripcion(slug, product.descripcion) ?? "";
 
   const imagenes = [
     ...sortProductImageLinks(
@@ -657,7 +666,9 @@ export default async function ProductoPage({ params }: { params: Params }) {
         id_archivo: a.archivo.id_archivo,
       }))
     ),
-    ...(isMacbookNeo ? getMacbookNeoGalleryExtras(current?.color ?? null) : []),
+    ...(isMacbookNeo
+      ? getMacbookNeoGalleryExtras(current?.color ?? null)
+      : await getGalleryExtras(slug)),
   ];
 
   const categoryId = product.categorias[0]?.id_categoria;
@@ -675,7 +686,7 @@ export default async function ProductoPage({ params }: { params: Params }) {
   const neoFeatures = isMacbookNeo ? getMacbookNeoFeatures(current?.color ?? null) : [];
   const airComparison = isMacbookNeo ? await getMacbookAirComparison() : null;
   const { box } = isMacbookNeo
-    ? extractBoxAndWarranty(product.descripcion)
+    ? extractBoxAndWarranty(descripcion)
     : { box: null };
   const accessories = isMacbookNeo ? await getMacbookNeoAccessories() : [];
 
@@ -692,21 +703,34 @@ export default async function ProductoPage({ params }: { params: Params }) {
   // Las plantillas nuevas arman el desplegable partiendo la descripción; el
   // resto del catálogo la sigue mostrando entera como hasta ahora.
   const parsed = plantillaNueva
-    ? parseProductDescription(product.descripcion, { titulo: product.titulo })
+    ? parseProductDescription(descripcion, { titulo: product.titulo })
     : null;
   // Un bloque sin subtítulo cubre el caso del texto suelto (cable, parlante).
-  const featureBlocks = parsed
-    ? parsed.features.length > 0
-      ? parsed.features
-      : parsed.introHtml
-        ? [{ title: "", html: parsed.introHtml }]
-        : []
-    : [];
+  // Odoo suele traer un solo bloque, así que los que faltan para completar la
+  // plantilla se escriben a mano. Ver descripcion-mock.
+  const featureBlocks = completarBloques(
+    slug,
+    parsed
+      ? parsed.features.length > 0
+        ? parsed.features
+        : parsed.introHtml
+          ? [{ title: "", html: parsed.introHtml }]
+          : []
+      : [],
+  );
   const cantidadBloques = bloquesCaracteristicas(template);
-  const featureImages = imagenes.slice(0, cantidadBloques).map(uploadPublicUrl);
+  // El carrusel lleva ángulos y vistas del producto; los bloques de abajo, el
+  // producto en uso. Son dos juegos de fotos distintos, así que para los
+  // productos con galería curada no se cae al carrusel: si todavía no hay
+  // fotos de experiencia, el bloque se dibuja hueco. El resto del catálogo
+  // sigue reusando la galería, que es lo único que tiene cargado.
+  const imagenesBloques = tieneGaleriaCurada(slug)
+    ? await getExperienceImages(slug)
+    : imagenes;
+  const featureImages = imagenesBloques.slice(0, cantidadBloques).map(uploadPublicUrl);
   // El desplegable lleva los mismos items que la Neo (menos comparativa y
   // accesorios): la Descripción va completa, igual que en la premium.
-  const descripcionCompleta = plantillaNueva ? product.descripcion : "";
+  const descripcionCompleta = plantillaNueva ? descripcion : "";
   const parsedSpecRows = (parsed?.specs ?? []).map((sp) => ({
     key: sp.key,
     label: sp.label,
@@ -873,7 +897,7 @@ export default async function ProductoPage({ params }: { params: Params }) {
           style={hiddenSectionStyle("oc-pdp-descripcion")}
         >
           <h2>Descripción</h2>
-          <div dangerouslySetInnerHTML={{ __html: product.descripcion }} />
+          <div dangerouslySetInnerHTML={{ __html: descripcion }} />
         </section>
       )}
 
@@ -881,7 +905,7 @@ export default async function ProductoPage({ params }: { params: Params }) {
         <NeoFeatureBlocks
           features={neoFeatures}
           hidden={defaultActiveSectionId !== "oc-pdp-caracteristicas"}
-          descripcionHtml={product.descripcion}
+          descripcionHtml={descripcion}
           specRows={specListRows}
           specHighlights={specHighlights}
           boxText={box ?? "MacBook Neo, Adaptador de Corriente USB-C, Cable de carga USB-C."}

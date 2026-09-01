@@ -3,11 +3,22 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { PdpInfoModal } from "@/components/pdp-info-modal";
+import { PdpEnvioCotizador } from "@/components/pdp-envio-cotizador";
 import { buildPlanesCuotas, LEGAL_CONDICIONES_PAGO } from "@/lib/condiciones-pago";
 import { formatPriceArs } from "@/lib/pricing";
 import type { StoreAvailabilityItem } from "@/lib/products";
 
 const ENVIO_DOMICILIO = "Envío a Domicilio";
+
+/**
+ * Tope del envío gratis en la ficha: hasta acá el cliente cotiza su envío,
+ * pasado este precio el envío va sin cargo.
+ *
+ * OJO: no es el parámetro `valor_para_envio_gratis` de la base, que hoy está
+ * en $800.000. Este umbral es el que manda en la ficha; si el negocio unifica
+ * los dos, hay que actualizar el parámetro y leerlo desde acá.
+ */
+const UMBRAL_ENVIO_GRATIS = 200_000;
 
 type Props = {
   /** Cuotas sin interés del producto (product.cuotas_max). */
@@ -150,6 +161,7 @@ function MetaCard({
 }
 
 export function ProductBuyboxMeta({ cuotas, precio, stores, envioGratis }: Props) {
+  const [openEnvio, setOpenEnvio] = useState(false);
   const [openPago, setOpenPago] = useState(false);
   const [openTiendas, setOpenTiendas] = useState(false);
 
@@ -158,19 +170,13 @@ export function ProductBuyboxMeta({ cuotas, precio, stores, envioGratis }: Props
   const conStock = sucursales.filter((s) => s.available);
   const sinStock = sucursales.filter((s) => !s.available);
   const hayEnvio = Boolean(envioItem?.available);
+  // Sin precio no se puede prometer envío gratis: se ofrece cotizar.
+  const envioSinCargo = precio != null && precio > UMBRAL_ENVIO_GRATIS;
 
   const planes = buildPlanesCuotas(precio, cuotas);
   const sinInteresPlanes = planes.filter((p) => p.sinInteres);
   const cuotaSinInteres = sinInteresPlanes[sinInteresPlanes.length - 1] ?? null;
 
-  const envioTitulo = hayEnvio
-    ? envioGratis
-      ? "Envío gratis a domicilio"
-      : "Envío a domicilio"
-    : "Retiro en sucursal";
-  const envioDetalle = hayEnvio
-    ? "Entrega en 24 hs en AMBA comprando antes de las 12 hs"
-    : "Coordiná el retiro en la tienda con stock";
 
   const pagoTitulo = cuotaSinInteres
     ? `Hasta ${cuotaSinInteres.cuotas} cuotas sin interés`
@@ -190,8 +196,14 @@ export function ProductBuyboxMeta({ cuotas, precio, stores, envioGratis }: Props
       <MetaCard
         className="is-envio"
         icon={<IconTruck />}
-        title={envioTitulo}
-        detail={envioDetalle}
+        title={envioSinCargo ? "Envío gratis a domicilio" : "Cotizá tu envío"}
+        detail={
+          envioSinCargo
+            ? "Entrega en 24 hs en AMBA comprando antes de las 12 hs"
+            : "Ingresá tu dirección y calculamos el costo"
+        }
+        cta={envioSinCargo ? undefined : "Calcular envío"}
+        onClick={envioSinCargo ? undefined : () => setOpenEnvio(true)}
       />
 
       <MetaCard
@@ -213,6 +225,14 @@ export function ProductBuyboxMeta({ cuotas, precio, stores, envioGratis }: Props
           onClick={() => setOpenTiendas(true)}
         />
       )}
+
+      <PdpInfoModal
+        open={openEnvio}
+        title="Cotizá tu envío"
+        onClose={() => setOpenEnvio(false)}
+      >
+        <PdpEnvioCotizador />
+      </PdpInfoModal>
 
       <PdpInfoModal
         open={openPago}
@@ -273,7 +293,7 @@ export function ProductBuyboxMeta({ cuotas, precio, stores, envioGratis }: Props
               <strong>Envío a domicilio</strong>
               <span>
                 {hayEnvio
-                  ? envioGratis
+                  ? envioSinCargo
                     ? "Envío gratis a todo el país"
                     : "Envío a todo el país"
                   : "Sin stock para envío"}

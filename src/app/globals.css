@@ -2124,24 +2124,6 @@ img { max-width: 100%; display: block; }
   gap: 0.5rem;
 }
 
-.oc-gallery-thumb-nav {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 28px;
-  border: 0;
-  background: transparent;
-  color: #9a9a9a;
-  cursor: pointer;
-  padding: 0;
-  flex-shrink: 0;
-}
-
-.oc-gallery-thumb-nav:hover {
-  color: #1d1d1f;
-}
-
 .oc-gallery-thumbs {
   display: flex;
   gap: 0.6rem;
@@ -2751,6 +2733,120 @@ img { max-width: 100%; display: block; }
   overflow-y: auto;
 }
 
+/* ---- Cotizador de envío (modal del buybox) ---- */
+.oc-pdp-envio-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.oc-pdp-envio-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1 1 100%;
+}
+
+.oc-pdp-envio-campo.is-corto {
+  flex-basis: 8rem;
+  flex-grow: 0;
+}
+
+.oc-pdp-envio-campo > span {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--oc-ink);
+}
+
+.oc-pdp-envio-campo input,
+.oc-pdp-envio-campo select {
+  font: inherit;
+  color: var(--oc-ink);
+  background: #fff;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--oc-border);
+  border-radius: 12px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.oc-pdp-envio-campo input:focus,
+.oc-pdp-envio-campo select:focus {
+  border-color: #1d1d1f;
+}
+
+.oc-pdp-envio-error {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 0.85rem;
+  color: #e30613;
+}
+
+.oc-pdp-envio-submit,
+.oc-pdp-envio-reset {
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 999px;
+  padding: 0.7rem 1.4rem;
+  transition: opacity 0.15s ease;
+}
+
+.oc-pdp-envio-submit {
+  flex: 1 1 100%;
+  border: 0;
+  color: #fff;
+  background: #1d1d1f;
+}
+
+.oc-pdp-envio-submit:hover,
+.oc-pdp-envio-reset:hover {
+  opacity: 0.85;
+}
+
+.oc-pdp-envio-result-dest {
+  margin: 0 0 0.9rem;
+  font-size: 0.88rem;
+  color: var(--oc-muted);
+}
+
+.oc-pdp-envio-result-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--oc-border);
+  border-radius: 16px;
+}
+
+.oc-pdp-envio-result-row > span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.oc-pdp-envio-result-row > span > span {
+  font-size: 0.85rem;
+  color: var(--oc-muted);
+}
+
+.oc-pdp-envio-monto {
+  font-size: 1.25rem;
+  white-space: nowrap;
+}
+
+.oc-pdp-envio-monto.is-gratis {
+  color: #1a8a3f;
+}
+
+.oc-pdp-envio-reset {
+  margin-top: 1rem;
+  border: 1px solid var(--oc-border);
+  background: #fff;
+  color: var(--oc-ink);
+}
+
 .oc-pdp-modal-note {
   margin: 0.9rem 0 0;
   font-size: 0.76rem;
@@ -3082,14 +3178,21 @@ body:has(.oc-pdp) {
 
 /* La foto del producto trae mucho aire propio, así que un stage de 560px
    empujaba las miniaturas muy abajo (la galería quedaba ~180px más larga que
-   el buybox). Se acota para que la tira de miniaturas suba. */
+   el buybox). Se acota para que la tira de miniaturas suba.
+
+   El alto sale de la ventana, no de un número fijo: con 480px duros la tira
+   de miniaturas arrancaba siempre en y=724 y quedaba cortada en cualquier
+   notebook de menos de ~820px de alto útil. Se descuentan el header (96px),
+   el breadcrumb, el padding del stage, la propia tira (87px) y un respiro;
+   lo que sobra es la imagen. En pantallas altas vuelve a mandar el tope de
+   480px de siempre, y nunca baja de 280px. */
 .oc-pdp .oc-gallery-stage {
-  min-height: 440px;
+  min-height: clamp(300px, calc(100svh - 384px), 440px);
   padding: 2rem;
 }
 
 .oc-pdp .oc-gallery-main {
-  max-height: 480px;
+  max-height: clamp(280px, calc(100svh - 380px), 480px);
 }
 
 .oc-pdp .oc-gallery-thumb {

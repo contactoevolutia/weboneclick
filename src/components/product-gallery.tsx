@@ -34,12 +34,6 @@ export function ProductGallery({ images, alt, outOfStock }: Props) {
     el?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
   }, [index]);
 
-  function scrollThumbs(dir: -1 | 1) {
-    const box = thumbsRef.current;
-    if (!box) return;
-    box.scrollBy({ left: dir * 96, behavior: "smooth" });
-  }
-
   return (
     <div className={`oc-gallery${outOfStock ? " oc-gallery-oos" : ""}`}>
       {outOfStock && <span className="oc-pdp-badge-oos">Sin Stock</span>}
@@ -73,14 +67,6 @@ export function ProductGallery({ images, alt, outOfStock }: Props) {
 
       {multi && (
         <div className="oc-gallery-thumbs-row">
-          <button
-            type="button"
-            className="oc-gallery-thumb-nav"
-            aria-label="Miniaturas anteriores"
-            onClick={() => scrollThumbs(-1)}
-          >
-            <ChevronLeft />
-          </button>
           <div className="oc-gallery-thumbs" ref={thumbsRef}>
             {urls.map((src, i) => (
               <button
@@ -97,14 +83,6 @@ export function ProductGallery({ images, alt, outOfStock }: Props) {
               </button>
             ))}
           </div>
-          <button
-            type="button"
-            className="oc-gallery-thumb-nav"
-            aria-label="Miniaturas siguientes"
-            onClick={() => scrollThumbs(1)}
-          >
-            <ChevronRight />
-          </button>
         </div>
       )}
     </div>
