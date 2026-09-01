@@ -25,6 +25,20 @@ export type ManualMpSyncResult = {
 
 const MP_TIPOS = ["mercado_pago", "tarjeta"] as const;
 
+/** Mercado Crédito: cuotas sin costo para el comercio; no aplicar tope ni reembolso. */
+const MP_CREDITO_METHOD_IDS = new Set([
+  "consumer_credits",
+  "mercadopago_credits",
+  "onboarding_credits",
+]);
+
+function isMercadoCreditoPayment(payment: PaymentResponse): boolean {
+  const id = String(payment.payment_method_id ?? "")
+    .trim()
+    .toLowerCase();
+  return MP_CREDITO_METHOD_IDS.has(id);
+}
+
 function money(n: number | string | { toString(): string } | null | undefined) {
   return Number(n ?? 0);
 }
@@ -58,8 +72,9 @@ async function maxInstallmentsForVentaPago(
 }
 
 /**
- * Si MP acreditó más cuotas de las permitidas (p. ej. cobro in-store vía QR
- * de la app), reembolsa y no marca la venta como pagada.
+ * Si una tarjeta acreditó más cuotas de las permitidas (p. ej. cobro in-store
+ * vía QR de la app), reembolsa y no marca la venta como pagada.
+ * No aplica a Mercado Crédito (`consumer_credits`, etc.).
  */
 async function rejectOverInstallments(opts: {
   payment: PaymentResponse;
@@ -203,18 +218,20 @@ export async function applyMercadoPagoPayment(
 
   if (status === "approved") {
     const paidInstallments = Math.max(1, Number(payment.installments ?? 1) || 1);
-    const maxAllowed = await maxInstallmentsForVentaPago(
-      tipoPago,
-      venta.detalles.map((d) => d.id_producto),
-    );
-    if (paidInstallments > maxAllowed) {
-      return rejectOverInstallments({
-        payment,
-        idVenta,
+    if (!isMercadoCreditoPayment(payment)) {
+      const maxAllowed = await maxInstallmentsForVentaPago(
         tipoPago,
-        maxAllowed,
-        paidInstallments,
-      });
+        venta.detalles.map((d) => d.id_producto),
+      );
+      if (paidInstallments > maxAllowed) {
+        return rejectOverInstallments({
+          payment,
+          idVenta,
+          tipoPago,
+          maxAllowed,
+          paidInstallments,
+        });
+      }
     }
 
     let shouldSyncOdoo = false;

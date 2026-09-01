@@ -74,6 +74,9 @@ function resolvePreferenceInstallments(
 }
 
 function paymentMethodsForPreference(installments: number) {
+  // `installments` limita cuotas de tarjeta en Checkout Pro. Mercado Crédito
+  // (`consumer_credits`) queda disponible con sus propias cuotas; se acepta en
+  // el webhook sin reembolso (ver mp-payment-sync).
   return {
     installments,
     default_installments: 1,
