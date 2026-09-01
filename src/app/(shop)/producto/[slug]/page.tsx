@@ -6,7 +6,7 @@ import { ViewItemTracker } from "@/components/funnel-trackers";
 import { ProductAddToCart } from "@/components/product-add-to-cart";
 import { ProductCard } from "@/components/product-card";
 import { ProductGallery } from "@/components/product-gallery";
-import { ProductNeoAccordion } from "@/components/product-neo-accordion";
+import { ProductAccordion } from "@/components/product-accordion";
 import { ProductNeoVariantSelector } from "@/components/product-neo-variant-selector";
 import { ProductPrice } from "@/components/product-price";
 import { ProductReserveForm } from "@/components/product-reserve-form";
@@ -37,6 +37,15 @@ import {
   parseSpecChips,
   type ProductFeature,
 } from "@/lib/macbook-neo";
+import {
+  bloquesCaracteristicas,
+  getPdpTemplate,
+  mostrarAccesorios,
+  mostrarComparativa,
+  mostrarSelectoresVariante,
+  usaPlantillaNueva,
+} from "@/lib/plantillas";
+import { parseProductDescription } from "@/lib/product-description";
 import { splitSpecHighlights, type SpecHighlight } from "@/lib/spec-highlights";
 import { uploadPublicUrl, whatsappUrl } from "@/lib/utils";
 
@@ -72,6 +81,127 @@ function SpecHighlightCards({ items }: { items: SpecHighlight[] }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+/** Slots de color y almacenamiento cuando el producto todavía no trae variantes. */
+function SelectoresVarianteHueco() {
+  return (
+    <div className="oc-neo-variants">
+      <div className="oc-neo-colors">
+        <p className="oc-neo-variant-label oc-neo-variant-label-row">
+          <span>Color</span>
+          <span className="oc-neo-variant-label-value">Sin variantes cargadas</span>
+        </p>
+        <div className="oc-neo-colors-row">
+          {[1, 2, 3].map((i) => (
+            <span className="oc-neo-swatch oc-pdp-hueco-swatch" key={i}>
+              <span className="oc-neo-swatch-dot" />
+              <span className="oc-neo-swatch-label">Color {i}</span>
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="oc-neo-storages">
+        <p className="oc-neo-variant-label oc-neo-variant-label-row">
+          <span>Almacenamiento</span>
+          <span className="oc-neo-variant-label-value">Sin variantes cargadas</span>
+        </p>
+        <div className="oc-neo-storages-row">
+          {[1, 2].map((i) => (
+            <span className="oc-neo-storage-btn oc-pdp-hueco-swatch" key={i}>
+              <span className="oc-neo-storage-btn-label">Capacidad {i}</span>
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Características de las plantillas nuevas. Dibuja siempre la cantidad de
+ * bloques que define la plantilla, con el mismo markup y las mismas clases que
+ * los bloques de la MacBook Neo. Los bloques sin contenido cargado se ven como
+ * hueco — imagen y texto de muestra — para poder revisar la maqueta completa
+ * antes de tener los datos.
+ */
+function PlantillaFeatureBlocks({
+  bloques,
+  imagenes,
+  cantidad,
+  hidden,
+}: {
+  bloques: { title: string; html: string }[];
+  imagenes: string[];
+  cantidad: number;
+  hidden?: boolean;
+}) {
+  if (cantidad === 0) return null;
+  return (
+    <section
+      id="oc-pdp-caracteristicas"
+      className="oc-neo-features"
+      style={hidden ? { display: "none" } : undefined}
+    >
+      <div className="oc-neo-features-inner">
+        {Array.from({ length: cantidad }, (_, i) => {
+          const bloque = bloques[i];
+          const imagen = imagenes[i];
+          const derecha = i % 2 === 1;
+          return (
+            <div className="oc-neo-feature-block" key={`feature-${i}`}>
+              <div className={`oc-neo-feature${derecha ? " image-right" : ""}`}>
+                {imagen ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    className="oc-neo-feature-image oc-neo-feature-image-cover"
+                    src={imagen}
+                    alt={bloque?.title || ""}
+                  />
+                ) : (
+                  <div className="oc-neo-feature-image oc-neo-feature-image-cover oc-pdp-hueco-imagen">
+                    <span>Imagen {i + 1} de {cantidad}</span>
+                  </div>
+                )}
+                <div className="oc-neo-feature-copy">
+                  {bloque ? (
+                    <>
+                      {bloque.title && (
+                        <SplitText
+                          tag="h2"
+                          text={bloque.title}
+                          splitType="words"
+                          delay={90}
+                          duration={1.1}
+                          ease="power3.out"
+                          from={{ opacity: 0, y: 24 }}
+                          to={{ opacity: 1, y: 0 }}
+                          threshold={0.2}
+                          rootMargin="-80px"
+                          textAlign="left"
+                        />
+                      )}
+                      <div
+                        className="oc-pdp-rte"
+                        dangerouslySetInnerHTML={{ __html: bloque.html }}
+                      />
+                    </>
+                  ) : (
+                    <div className="oc-pdp-hueco-texto">
+                      <h2>Título del bloque {i + 1}</h2>
+                      <span className="oc-pdp-hueco-linea" />
+                      <span className="oc-pdp-hueco-linea" />
+                      <span className="oc-pdp-hueco-linea is-corta" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -335,7 +465,7 @@ function NeoFeatureBlocks({
           <NeoAlternatingFeature key={block.key} block={block} imageSide={i % 2 === 0 ? "left" : "right"} />
         ))}
 
-        <ProductNeoAccordion
+        <ProductAccordion
           items={[
             {
               id: "descripcion",
@@ -557,6 +687,36 @@ export default async function ProductoPage({ params }: { params: Params }) {
         value: c.valor,
       }));
 
+  const template = getPdpTemplate(slug, isMacbookNeo);
+  const plantillaNueva = usaPlantillaNueva(template);
+  // Las plantillas nuevas arman el desplegable partiendo la descripción; el
+  // resto del catálogo la sigue mostrando entera como hasta ahora.
+  const parsed = plantillaNueva
+    ? parseProductDescription(product.descripcion, { titulo: product.titulo })
+    : null;
+  // Un bloque sin subtítulo cubre el caso del texto suelto (cable, parlante).
+  const featureBlocks = parsed
+    ? parsed.features.length > 0
+      ? parsed.features
+      : parsed.introHtml
+        ? [{ title: "", html: parsed.introHtml }]
+        : []
+    : [];
+  const cantidadBloques = bloquesCaracteristicas(template);
+  const featureImages = imagenes.slice(0, cantidadBloques).map(uploadPublicUrl);
+  // El desplegable lleva los mismos items que la Neo (menos comparativa y
+  // accesorios): la Descripción va completa, igual que en la premium.
+  const descripcionCompleta = plantillaNueva ? product.descripcion : "";
+  const parsedSpecRows = (parsed?.specs ?? []).map((sp) => ({
+    key: sp.key,
+    label: sp.label,
+    value: sp.value,
+  }));
+  const {
+    highlights: parsedHighlights,
+    rest: parsedSpecList,
+  } = splitSpecHighlights(parsedSpecRows);
+
   const { highlights: specHighlights, rest: specListRows } = splitSpecHighlights(specRows, {
     procesadorCaption:
       isMacbookNeo && current ? parseCpuGpuCaption(current.titulo) : undefined,
@@ -577,11 +737,14 @@ export default async function ProductoPage({ params }: { params: Params }) {
   ];
 
   const defaultActiveSectionId = sections[0]?.id;
+  // Sólo la MacBook Neo tiene acordeón propio para mostrar el resto de las
+  // secciones. Sin él, ocultarlas las dejaba inalcanzables: "Productos
+  // relacionados" se renderizaba con display:none en todo el catálogo.
   const hiddenSectionStyle = (id: string): CSSProperties | undefined =>
-    id === defaultActiveSectionId ? undefined : { display: "none" };
+    isMacbookNeo && id !== defaultActiveSectionId ? { display: "none" } : undefined;
 
   return (
-    <div className={`container oc-pdp${isMacbookNeo ? " oc-pdp-theme-neo" : ""}`}>
+    <div className="container oc-pdp">
       <ViewItemTracker
         itemId={String(product.id_producto)}
         itemName={product.titulo}
@@ -626,6 +789,10 @@ export default async function ProductoPage({ params }: { params: Params }) {
             porcentaje_desc={product.porcentaje_desc}
             precio_con_desc={product.precio_con_desc}
           />
+
+          {!isMacbookNeo && mostrarSelectoresVariante(template) && (
+            <SelectoresVarianteHueco />
+          )}
 
           {isMacbookNeo && current && (
             <ProductNeoVariantSelector
@@ -699,14 +866,16 @@ export default async function ProductoPage({ params }: { params: Params }) {
         </div>
       </div>
 
-      <section
-        id="oc-pdp-descripcion"
-        className="oc-pdp-description"
-        style={hiddenSectionStyle("oc-pdp-descripcion")}
-      >
-        <h2>Descripción</h2>
-        <div dangerouslySetInnerHTML={{ __html: product.descripcion }} />
-      </section>
+      {!plantillaNueva && (
+        <section
+          id="oc-pdp-descripcion"
+          className="oc-pdp-description"
+          style={hiddenSectionStyle("oc-pdp-descripcion")}
+        >
+          <h2>Descripción</h2>
+          <div dangerouslySetInnerHTML={{ __html: product.descripcion }} />
+        </section>
+      )}
 
       {isMacbookNeo && (
         <NeoFeatureBlocks
@@ -732,7 +901,117 @@ export default async function ProductoPage({ params }: { params: Params }) {
         />
       )}
 
-      {specRows.length > 0 && (
+      {plantillaNueva && !isMacbookNeo && (
+        <PlantillaFeatureBlocks
+          bloques={featureBlocks}
+          imagenes={featureImages}
+          cantidad={cantidadBloques}
+        />
+      )}
+
+      {plantillaNueva && !isMacbookNeo && (
+        <section className="oc-pdp-content">
+          <ProductAccordion
+            items={[
+              {
+                id: "descripcion",
+                title: "Descripción",
+                content: descripcionCompleta ? (
+                  <div
+                    className="oc-pdp-rte"
+                    dangerouslySetInnerHTML={{ __html: descripcionCompleta }}
+                  />
+                ) : (
+                  <p className="oc-pdp-hueco-nota">Sin descripción cargada.</p>
+                ),
+              },
+              {
+                id: "especificaciones",
+                title: "Especificaciones",
+                content:
+                  parsedSpecRows.length > 0 ? (
+                    <>
+                      <SpecHighlightCards items={parsedHighlights} />
+                      <dl className="oc-pdp-specs-grid">
+                        {parsedSpecList.map((row) => (
+                          <div className="oc-pdp-specs-row" key={row.key}>
+                            <dt>{row.label}</dt>
+                            <dd>{row.value}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                      {parsed?.specsExtraHtml ? (
+                        <div
+                          className="oc-pdp-rte"
+                          dangerouslySetInnerHTML={{ __html: parsed.specsExtraHtml }}
+                        />
+                      ) : null}
+                    </>
+                  ) : (
+                    <p className="oc-pdp-hueco-nota">
+                      Sin especificaciones cargadas todavía.
+                    </p>
+                  ),
+              },
+              {
+                id: "contenido-caja",
+                title: "Contenido de la caja",
+                content:
+                  parsed && parsed.boxItems.length > 0 ? (
+                    <ul className="oc-pdp-box-list">
+                      {parsed.boxItems.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="oc-pdp-hueco-nota">
+                      Sin contenido de la caja cargado.
+                    </p>
+                  ),
+              },
+              ...(mostrarComparativa(template)
+                ? [
+                    {
+                      id: "comparativa",
+                      title: "Comparativa",
+                      content: (
+                        <p className="oc-pdp-hueco-nota">
+                          Sin comparativa configurada para este producto.
+                        </p>
+                      ),
+                    },
+                  ]
+                : []),
+              ...(mostrarAccesorios(template)
+                ? [
+                    {
+                      id: "accesorios",
+                      title: "Accesorios",
+                      content:
+                        related.length > 0 ? (
+                          <div className="oc-product-grid">
+                            {related.slice(0, 4).map((p) => (
+                              <ProductCard
+                                key={p.id_producto}
+                                product={p}
+                                descuentoContado={descConfig}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="oc-pdp-hueco-nota">
+                            Sin accesorios asociados todavía.
+                          </p>
+                        ),
+                    },
+                  ]
+                : []),
+            ]}
+          />
+        </section>
+      )}
+
+      {!plantillaNueva && specRows.length > 0 && (
         <section
           id="oc-pdp-especificaciones"
           className="oc-pdp-specs-section"
@@ -769,7 +1048,7 @@ export default async function ProductoPage({ params }: { params: Params }) {
           descuentoContado={descConfig}
         />
       ) : (
-        related.length > 0 && (
+        related.length > 0 && !(plantillaNueva && mostrarAccesorios(template)) && (
           <section
             id="oc-pdp-relacionados"
             className="oc-pdp-related"

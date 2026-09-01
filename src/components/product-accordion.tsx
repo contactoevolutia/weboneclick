@@ -2,28 +2,30 @@
 
 import { useState, type ReactNode } from "react";
 
+/** Desplegable del pie de la ficha. Lo usan las tres plantillas: cambia qué
+ *  items recibe, no cómo se ve. */
 type AccordionItem = { id: string; title: string; content: ReactNode };
 
-export function ProductNeoAccordion({ items }: { items: AccordionItem[] }) {
+export function ProductAccordion({ items }: { items: AccordionItem[] }) {
   const [openId, setOpenId] = useState<string | null>(null);
 
   if (items.length === 0) return null;
 
   return (
-    <div className="oc-neo-accordion">
+    <div className="oc-pdp-accordion">
       {items.map((item) => {
         const isOpen = openId === item.id;
         return (
-          <div className="oc-neo-accordion-item" key={item.id}>
+          <div className="oc-pdp-accordion-item" key={item.id}>
             <button
               type="button"
-              className="oc-neo-accordion-trigger"
+              className="oc-pdp-accordion-trigger"
               aria-expanded={isOpen}
               onClick={() => setOpenId(isOpen ? null : item.id)}
             >
               <span>{item.title}</span>
               <span
-                className={`oc-neo-accordion-icon${isOpen ? " is-open" : ""}`}
+                className={`oc-pdp-accordion-icon${isOpen ? " is-open" : ""}`}
                 aria-hidden="true"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -37,7 +39,7 @@ export function ProductNeoAccordion({ items }: { items: AccordionItem[] }) {
                 </svg>
               </span>
             </button>
-            {isOpen && <div className="oc-neo-accordion-panel">{item.content}</div>}
+            {isOpen && <div className="oc-pdp-accordion-panel">{item.content}</div>}
           </div>
         );
       })}

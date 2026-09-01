@@ -42,7 +42,12 @@ export function splitSpecHighlights(
   };
 
   const procesador = find(RE_PROCESADOR);
-  const bateria = find(RE_BATERIA);
+  // La tarjeta de batería sólo tiene sentido con una autonomía real ("15
+  // horas"). Una fila como "Tipo de batería: Batería" vuelve a la lista.
+  const bateriaCandidata = find(RE_BATERIA);
+  const bateriaResumen = bateriaCandidata ? resumirBateria(bateriaCandidata.value) : null;
+  if (bateriaCandidata && !bateriaResumen) usados.delete(bateriaCandidata.key);
+  const bateria = bateriaResumen ? bateriaCandidata : undefined;
   const ram = find(RE_RAM);
   const almacenamiento = find(RE_ALMACENAMIENTO);
 
@@ -74,13 +79,8 @@ export function splitSpecHighlights(
     });
   }
 
-  if (bateria) {
-    const resumen = resumirBateria(bateria.value);
-    highlights.push({
-      key: "bateria",
-      value: resumen ?? bateria.value,
-      caption: resumen ? "de autonomía" : bateria.label,
-    });
+  if (bateria && bateriaResumen) {
+    highlights.push({ key: "bateria", value: bateriaResumen, caption: "de autonomía" });
   }
 
   return { highlights, rest: rows.filter((r) => !usados.has(r.key)) };

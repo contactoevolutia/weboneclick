@@ -3067,55 +3067,57 @@ img { max-width: 100%; display: block; }
 }
 
 /* ============================================================
-   Tema "MacBook Neo" — piloto de diseño estilo JBL (acento rojo).
-   Todo scopeado bajo .oc-pdp-theme-neo para no afectar otros productos.
+   Estética base de la ficha de producto (nació como piloto en la
+   MacBook Neo y ahora aplica a las tres plantillas): fondo blanco,
+   acento rojo en la marca, títulos grandes y galería dominante.
+   Lo específico de la Neo son sus bloques de contenido, no esto.
    ============================================================ */
-body:has(.oc-pdp-theme-neo) {
+body:has(.oc-pdp) {
   background: #fff;
 }
 
-.oc-pdp-theme-neo .oc-product-detail {
+.oc-pdp .oc-product-detail {
   grid-template-columns: 1.15fr 0.85fr;
 }
 
 /* La foto del producto trae mucho aire propio, así que un stage de 560px
    empujaba las miniaturas muy abajo (la galería quedaba ~180px más larga que
    el buybox). Se acota para que la tira de miniaturas suba. */
-.oc-pdp-theme-neo .oc-gallery-stage {
+.oc-pdp .oc-gallery-stage {
   min-height: 440px;
   padding: 2rem;
 }
 
-.oc-pdp-theme-neo .oc-gallery-main {
+.oc-pdp .oc-gallery-main {
   max-height: 480px;
 }
 
-.oc-pdp-theme-neo .oc-gallery-thumb {
+.oc-pdp .oc-gallery-thumb {
   width: 84px;
   height: 84px;
 }
 
 @media (max-width: 768px) {
-  .oc-pdp-theme-neo .oc-product-detail {
+  .oc-pdp .oc-product-detail {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .oc-pdp-theme-neo .oc-gallery-stage {
+  .oc-pdp .oc-gallery-stage {
     min-height: 340px;
     padding: 1.75rem;
   }
 
-  .oc-pdp-theme-neo .oc-gallery-main {
+  .oc-pdp .oc-gallery-main {
     max-height: 380px;
   }
 }
 
-.oc-pdp-theme-neo .oc-pdp-brand {
+.oc-pdp .oc-pdp-brand {
   color: #e30613;
 }
 
 /* Títulos grandes pero de trazo liviano (semibold, no black) */
-.oc-pdp-theme-neo .oc-pdp-buybox h1 {
+.oc-pdp .oc-pdp-buybox h1 {
   font-size: clamp(2.3rem, 4vw, 3.25rem);
   font-weight: 600;
   line-height: 1.04;
@@ -3123,16 +3125,16 @@ body:has(.oc-pdp-theme-neo) {
   margin: 0.2rem 0 0.75rem;
 }
 
-.oc-pdp-theme-neo .oc-pdp-description > h2,
-.oc-pdp-theme-neo .oc-pdp-specs-section h2,
-.oc-pdp-theme-neo .oc-neo-compare h2,
-.oc-pdp-theme-neo .oc-pdp-related h2 {
+.oc-pdp .oc-pdp-description > h2,
+.oc-pdp .oc-pdp-specs-section h2,
+.oc-pdp .oc-neo-compare h2,
+.oc-pdp .oc-pdp-related h2 {
   font-size: clamp(1.6rem, 2.6vw, 2rem);
   font-weight: 600;
   letter-spacing: -0.02em;
 }
 
-.oc-pdp-theme-neo .oc-neo-feature-copy h2 {
+.oc-pdp .oc-neo-feature-copy h2 {
   font-size: clamp(2.1rem, 3.4vw, 2.6rem);
   font-weight: 600;
   line-height: 1.08;
@@ -3141,8 +3143,8 @@ body:has(.oc-pdp-theme-neo) {
 
 /* La descripción viene como HTML crudo de Odoo y puede traer su propio
    h2/h3 duplicando el título — se muestra discreto, no como otro título. */
-.oc-pdp-theme-neo .oc-pdp-description > div h2,
-.oc-pdp-theme-neo .oc-pdp-description > div h3 {
+.oc-pdp .oc-pdp-description > div h2,
+.oc-pdp .oc-pdp-description > div h3 {
   font-size: 1rem;
   font-weight: 700;
   color: var(--oc-ink);
@@ -3466,16 +3468,87 @@ body:has(.oc-pdp-theme-neo) {
 }
 
 /* Acordeón estilo JBL debajo de los bloques de Características. */
-.oc-neo-accordion {
+.oc-pdp-box-list {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+/* Slots de variante sin cargar: misma forma que los reales, en gris. */
+.oc-pdp-hueco-swatch {
+  color: #b8b8bf;
+  border-style: dashed;
+  border-color: #d2d2d7;
+  cursor: default;
+}
+
+.oc-pdp-hueco-swatch .oc-neo-swatch-dot {
+  background: #eeeef0;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+/* Huecos a llenar: la plantilla se ve completa antes de tener los datos. */
+.oc-pdp-hueco-imagen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f7;
+  border: 1px dashed #d2d2d7;
+  border-radius: 20px;
+}
+
+.oc-pdp-hueco-imagen span {
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #a1a1a8;
+}
+
+.oc-pdp-hueco-texto h2 {
+  color: #c4c4ca;
+}
+
+.oc-pdp-hueco-linea {
+  display: block;
+  height: 0.75rem;
+  border-radius: 4px;
+  background: #f0f0f2;
+  margin-top: 0.75rem;
+}
+
+.oc-pdp-hueco-linea.is-corta {
+  width: 60%;
+}
+
+.oc-pdp-hueco-nota {
+  margin: 0;
+  color: var(--oc-muted);
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+/* Contenedor del desplegable en las plantillas intermedia y básica. */
+.oc-pdp-content {
+  margin: 0 0 2.5rem;
+}
+
+.oc-pdp-content .oc-pdp-accordion {
+  margin-top: 1rem;
+}
+
+.oc-pdp-accordion {
   margin: 4rem 0 0;
+  border-bottom: 0;
   border-top: 1px solid #1d1d1f;
 }
 
-.oc-neo-accordion-item {
+.oc-pdp-accordion-item {
   border-bottom: 1px solid #1d1d1f;
 }
 
-.oc-neo-accordion-trigger {
+.oc-pdp-accordion-trigger {
   width: 100%;
   display: flex;
   align-items: center;
@@ -3496,30 +3569,48 @@ body:has(.oc-pdp-theme-neo) {
   text-align: left;
 }
 
-.oc-neo-accordion-icon {
+.oc-pdp-accordion-icon {
   flex-shrink: 0;
   display: inline-flex;
   color: #1d1d1f;
   transition: transform 0.2s ease;
 }
 
-.oc-neo-accordion-icon.is-open {
+.oc-pdp-accordion-icon.is-open {
   transform: rotate(180deg);
 }
 
-.oc-neo-accordion-panel {
+.oc-pdp-accordion-panel {
   padding: 0 0.25rem 1.75rem;
   font-size: 0.95rem;
   line-height: 1.6;
   color: #333;
 }
 
-.oc-neo-accordion-panel .oc-pdp-specs-grid {
+.oc-pdp-accordion-panel .oc-pdp-rte h2,
+.oc-pdp-accordion-panel .oc-pdp-rte h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 1.4rem 0 0.5rem;
+  color: var(--oc-ink);
+}
+
+.oc-pdp-accordion-panel .oc-pdp-rte h2:first-child,
+.oc-pdp-accordion-panel .oc-pdp-rte h3:first-child {
+  margin-top: 0;
+}
+
+.oc-pdp-accordion-panel .oc-pdp-rte img {
+  max-width: 100%;
+  height: auto;
+}
+
+.oc-pdp-accordion-panel .oc-pdp-specs-grid {
   display: grid;
   gap: 0.5rem;
 }
 
-.oc-neo-accordion-panel .oc-pdp-specs-row {
+.oc-pdp-accordion-panel .oc-pdp-specs-row {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
@@ -3527,11 +3618,11 @@ body:has(.oc-pdp-theme-neo) {
   border-bottom: 1px solid #ececec;
 }
 
-.oc-neo-accordion-panel .oc-pdp-specs-row dt {
+.oc-pdp-accordion-panel .oc-pdp-specs-row dt {
   color: var(--oc-muted);
 }
 
-.oc-neo-accordion-panel .oc-pdp-specs-row dd {
+.oc-pdp-accordion-panel .oc-pdp-specs-row dd {
   margin: 0;
   font-weight: 500;
   text-align: right;
