@@ -19,10 +19,16 @@ function param(sp: Record<string, string | string[] | undefined>, key: string) {
 }
 
 function parseOrder(raw?: string): ShopOrder {
-  if (raw === "precio-asc" || raw === "precio-desc" || raw === "nombre" || raw === "ultimos") {
+  if (
+    raw === "mas-vendidos" ||
+    raw === "precio-asc" ||
+    raw === "precio-desc" ||
+    raw === "nombre" ||
+    raw === "ultimos"
+  ) {
     return raw;
   }
-  return "ultimos";
+  return "mas-vendidos";
 }
 
 function paginationWindow(current: number, total: number): (number | "…")[] {

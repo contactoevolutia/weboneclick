@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { buildShopHref, type ShopQuery } from "@/lib/shop-query";
 
 const ORDER_OPTIONS = [
+  { value: "mas-vendidos", label: "Más vendidos" },
   { value: "ultimos", label: "Ordenar por los últimos" },
   { value: "precio-asc", label: "Ordenar por precio: bajo a alto" },
   { value: "precio-desc", label: "Ordenar por precio: alto a bajo" },
@@ -20,7 +21,7 @@ type Props = {
 
 export function ShopToolbar({ query, from, to, total, basePath = "/shop" }: Props) {
   const router = useRouter();
-  const orden = query.orden || "ultimos";
+  const orden = query.orden || "mas-vendidos";
 
   return (
     <div className="oc-shop-toolbar">

@@ -18,6 +18,7 @@
     "sync:stock": "tsx scripts/sync-stock.ts",
     "sync:precios": "tsx scripts/sync-precios.ts",
     "sync:precios-promo": "tsx scripts/sync-precios-promo.ts",
+    "sync:ventas-productos": "tsx scripts/sync-ventas-productos.ts",
     "sync:gallery": "tsx scripts/sync-product-gallery.ts",
     "sync:home-images": "tsx scripts/sync-home-images.ts",
     "sync:ventas": "tsx scripts/sync-ventas-odoo.ts",

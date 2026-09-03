@@ -3,7 +3,7 @@
  * Uso: npx tsx scripts/inspect-odoo.ts
  */
 import "dotenv/config";
-import { executeKw, searchCount, searchRead } from "../src/lib/odoo";
+import { executeKw, readGroup, searchCount, searchRead } from "../src/lib/odoo";
 
 async function main() {
   const models = [
@@ -50,14 +50,67 @@ async function main() {
     const interesting = Object.entries(fields)
       .filter(
         ([k, v]) =>
-          /brand|tag|publicado|image|categ|price|web/i.test(k) ||
-          /brand|tag|publicado|web/i.test(v.string)
+          /brand|tag|publicado|image|categ|price|web|sold|venta|sales|qty/i.test(k) ||
+          /brand|tag|publicado|web|vend|sales/i.test(v.string)
       )
       .map(([k, v]) => `${k} [${v.type}] ${v.string}`);
-    console.log("\nRelevant fields:");
+    console.log("\nRelevant product.product fields:");
     interesting.forEach((l) => console.log(" ", l));
   } catch (e) {
-    console.warn("fields_get failed", e);
+    console.warn("fields_get product.product failed", e);
+  }
+
+  // Validación dominio ventas (sync cantidad_vendida)
+  const saleLineDomain: unknown[] = [
+    ["state", "in", ["sale", "done"]],
+    ["product_id", "!=", false],
+  ];
+
+  try {
+    const lineCount = await searchCount("sale.order.line", saleLineDomain);
+    console.log(`\nsale.order.line (state sale|done): ${lineCount} líneas`);
+
+    const started = Date.now();
+    const groups = await readGroup(
+      "sale.order.line",
+      saleLineDomain,
+      ["product_uom_qty:sum"],
+      ["product_id"],
+      { lazy: false }
+    );
+    const durationMs = Date.now() - started;
+    console.log(`read_group product_id: ${groups.length} grupos en ${durationMs}ms`);
+
+    const top = groups
+      .slice()
+      .sort(
+        (a, b) =>
+          Number(b.product_uom_qty ?? 0) - Number(a.product_uom_qty ?? 0)
+      )
+      .slice(0, 5);
+    console.log("\nTop 5 productos por unidades (Odoo):");
+    for (const row of top) {
+      console.log(
+        " ",
+        JSON.stringify({
+          product_id: row.product_id,
+          qty: row.product_uom_qty,
+        })
+      );
+    }
+  } catch (e) {
+    console.warn("sale.order.line inspection failed", e);
+  }
+
+  try {
+    const orderStates = await executeKw<
+      Record<string, { string: string; type: string; selection?: [string, string][] }>
+    >("sale.order", "fields_get", [["state"]], {
+      attributes: ["string", "type", "selection"],
+    });
+    console.log("\nsale.order state selection:", orderStates.state?.selection);
+  } catch (e) {
+    console.warn("sale.order fields_get failed", e);
   }
 }
 

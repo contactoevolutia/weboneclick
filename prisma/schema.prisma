@@ -207,6 +207,8 @@ model producto {
   activo      Boolean @default(true)
   /// Alícuota IVA real del producto en Odoo (0.2100 | 0.1050). Null = sin dato del sync.
   iva_rate    Decimal? @db.Decimal(5, 4)
+  /// Unidades vendidas históricas (todos los canales vía Odoo, o solo web en fallback)
+  cantidad_vendida Int @default(0)
 
   marca           marca?                    @relation(fields: [id_marca], references: [id_marca], onDelete: SetNull)
   stocks          stock[]

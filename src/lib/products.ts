@@ -328,7 +328,7 @@ async function productIdsMatchingNumericFilters(
   return ids ?? [];
 }
 
-export type ShopOrder = "ultimos" | "precio-asc" | "precio-desc" | "nombre";
+export type ShopOrder = "mas-vendidos" | "ultimos" | "precio-asc" | "precio-desc" | "nombre";
 
 export type ShopCategoryNode = {
   id_categoria: number;
@@ -674,7 +674,7 @@ export async function getActiveProducts(options?: {
     characteristicFilters: options?.characteristicFilters ?? null,
     take: options?.take ?? 24,
     skip: options?.skip ?? 0,
-    order: options?.order ?? "ultimos",
+    order: options?.order ?? "mas-vendidos",
     minPrice: options?.minPrice ?? null,
     maxPrice: options?.maxPrice ?? null,
     inStockOnly: options?.inStockOnly ?? false,
@@ -760,7 +760,7 @@ async function getActiveProductsUncached(options?: {
 
   const take = options?.take ?? 24;
   const skip = options?.skip ?? 0;
-  const order = options?.order ?? "ultimos";
+  const order = options?.order ?? "mas-vendidos";
   const needsPrice =
     order === "precio-asc" ||
     order === "precio-desc" ||
@@ -783,6 +783,7 @@ async function getActiveProductsUncached(options?: {
     select: {
       id_producto: true,
       titulo: true,
+      cantidad_vendida: true,
       stocks: {
         include: {
           almacen: {
@@ -804,6 +805,7 @@ async function getActiveProductsUncached(options?: {
   type Ranked = {
     id_producto: number;
     titulo: string;
+    cantidad_vendida: number;
     inStock: boolean;
     precio: number | null;
   };
@@ -813,6 +815,7 @@ async function getActiveProductsUncached(options?: {
     return {
       id_producto: c.id_producto,
       titulo: c.titulo,
+      cantidad_vendida: c.cantidad_vendida,
       inStock: stock.inStock,
       precio: priceMap?.get(c.id_producto) ?? null,
     };
@@ -839,6 +842,11 @@ async function getActiveProductsUncached(options?: {
     }
     if (order === "nombre") {
       return a.titulo.localeCompare(b.titulo, "es");
+    }
+    if (order === "mas-vendidos") {
+      const diff = b.cantidad_vendida - a.cantidad_vendida;
+      if (diff !== 0) return diff;
+      return b.id_producto - a.id_producto;
     }
     // ultimos: id desc
     return b.id_producto - a.id_producto;
