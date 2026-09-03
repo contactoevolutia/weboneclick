@@ -8,6 +8,14 @@ export const CUPON_MAX_AGE = 60 * 60 * 24 * 14; // 14 días
 export const CUPON_ESTADO_EMITIDO = "emitido";
 export const CUPON_ESTADO_CONSUMIDO = "consumido";
 
+/** Cupón emitido y sin venta asociada: se puede editar o eliminar desde admin. */
+export function isCuponEditable(cupon: {
+  estado: string;
+  id_venta: number | null;
+}): boolean {
+  return cupon.estado === CUPON_ESTADO_EMITIDO && cupon.id_venta === null;
+}
+
 const CODE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const RANDOM_LEN = 10;
 

@@ -1,7 +1,10 @@
 import Link from "next/link";
+import { ConfirmDeleteForm } from "@/app/admin/menu/confirm-delete-form";
 import { requireAdmin } from "@/lib/auth-guard";
+import { isCuponEditable } from "@/lib/cupones";
 import { formatPriceArs } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
+import { eliminarCupon } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +59,8 @@ export default async function AdminDescuentosPage({
   const ok = sp(q.ok);
   const countCreated = sp(q.count);
   const prefijoOk = sp(q.prefijo);
+  const edited = ok === "edit";
+  const deleted = ok === "delete";
 
   const exportQs = new URLSearchParams();
   if (grupoFilter) exportQs.set("grupo", grupoFilter);
@@ -96,7 +101,7 @@ export default async function AdminDescuentosPage({
         Cupones de monto fijo. Filtrá por grupo para exportar un lote.
       </p>
 
-      {ok && (
+      {ok && !edited && !deleted && (
         <p
           className="admin-card"
           style={{
@@ -115,6 +120,36 @@ export default async function AdminDescuentosPage({
             </>
           ) : null}
           .
+        </p>
+      )}
+
+      {edited && (
+        <p
+          className="admin-card"
+          style={{
+            marginBottom: "0.75rem",
+            padding: "0.55rem 0.75rem",
+            background: "#e8f5e9",
+            borderColor: "#a5d6a7",
+            fontSize: "0.85rem",
+          }}
+        >
+          Cupón actualizado correctamente.
+        </p>
+      )}
+
+      {deleted && (
+        <p
+          className="admin-card"
+          style={{
+            marginBottom: "0.75rem",
+            padding: "0.55rem 0.75rem",
+            background: "#e8f5e9",
+            borderColor: "#a5d6a7",
+            fontSize: "0.85rem",
+          }}
+        >
+          Cupón eliminado correctamente.
         </p>
       )}
 
@@ -175,17 +210,20 @@ export default async function AdminDescuentosPage({
               <th>Creación</th>
               <th>Usuario</th>
               <th>Consumido</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             {items.length === 0 ? (
               <tr>
-                <td colSpan={8} className="muted">
+                <td colSpan={9} className="muted">
                   No hay cupones{grupoFilter || estadoFilter || codigoFilter ? " con estos filtros" : ""}.
                 </td>
               </tr>
             ) : (
-              items.map((row) => (
+              items.map((row) => {
+                const editable = isCuponEditable(row);
+                return (
                 <tr key={row.id_cupon}>
                   <td>
                     <code>{row.codigo}</code>
@@ -203,8 +241,26 @@ export default async function AdminDescuentosPage({
                       ? row.fecha_consumido.toLocaleString("es-AR")
                       : "—"}
                   </td>
+                  <td style={{ whiteSpace: "nowrap", fontSize: "0.85rem" }}>
+                    {editable ? (
+                      <span style={{ display: "inline-flex", gap: "0.5rem", alignItems: "center" }}>
+                        <Link href={`/admin/descuentos/${row.id_cupon}`}>Editar</Link>
+                        <ConfirmDeleteForm
+                          action={eliminarCupon.bind(null, row.id_cupon)}
+                          message={`¿Eliminar el cupón ${row.codigo}? Esta acción no se puede deshacer.`}
+                        >
+                          <button type="submit" className="btn btn-ghost" style={{ padding: 0, color: "#c00" }}>
+                            Eliminar
+                          </button>
+                        </ConfirmDeleteForm>
+                      </span>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
                 </tr>
-              ))
+              );
+              })
             )}
           </tbody>
         </table>
