@@ -80,6 +80,10 @@ export default async function AdminProductoDetailPage({ params }: { params: Para
               </div>
             </div>
             <div className="form-field">
+              <label>Slug</label>
+              <input name="slug" defaultValue={product.slug} required />
+            </div>
+            <div className="form-field">
               <label>Descripción</label>
               <textarea name="descripcion" rows={3} defaultValue={product.descripcion} required />
             </div>

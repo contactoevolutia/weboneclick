@@ -23,6 +23,10 @@ export default async function AdminNuevoProductoPage() {
             <input name="titulo" required />
           </div>
           <div className="form-field">
+            <label>Slug</label>
+            <input name="slug" placeholder="Se genera del título si lo dejás vacío" />
+          </div>
+          <div className="form-field">
             <label>Descripción</label>
             <textarea name="descripcion" rows={3} required />
           </div>

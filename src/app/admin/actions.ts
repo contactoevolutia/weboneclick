@@ -16,21 +16,28 @@ function revalidateCatalog() {
   revalidateTag("categories", { expire: 0 });
 }
 
+async function uniqueProductoSlug(base: string, excludeId?: number) {
+  let slug = slugify(base) || `producto-${Date.now()}`;
+  const slugRoot = slug;
+  let i = 2;
+  while (true) {
+    const existing = await prisma.producto.findUnique({ where: { slug } });
+    if (!existing || existing.id_producto === excludeId) return slug;
+    slug = `${slugRoot}-${i++}`;
+  }
+}
+
 export async function createProducto(formData: FormData) {
   await guard();
   const titulo = String(formData.get("titulo") || "").trim();
   const descripcion = String(formData.get("descripcion") || "").trim();
   const precio = Number(formData.get("precio") || 0);
   const categoriaIds = formData.getAll("categorias").map(Number).filter(Boolean);
-  const slugBase = slugify(titulo) || `producto-${Date.now()}`;
+  const slugInput = String(formData.get("slug") || "").trim();
 
   if (!titulo) throw new Error("Título requerido");
 
-  let slug = slugBase;
-  let i = 2;
-  while (await prisma.producto.findUnique({ where: { slug } })) {
-    slug = `${slugBase}-${i++}`;
-  }
+  const slug = await uniqueProductoSlug(slugInput || titulo);
 
   const product = await prisma.producto.create({
     data: {
@@ -60,10 +67,18 @@ export async function createProducto(formData: FormData) {
 
 export async function updateProducto(id_producto: number, formData: FormData) {
   await guard();
+  const existing = await prisma.producto.findUnique({
+    where: { id_producto },
+    select: { slug: true },
+  });
+  if (!existing) throw new Error("Producto no encontrado");
+
   const titulo = String(formData.get("titulo") || "").trim();
   const descripcion = String(formData.get("descripcion") || "").trim();
   const activo = formData.get("activo") === "on";
   const categoriaIds = formData.getAll("categorias").map(Number).filter(Boolean);
+  const slugInput = String(formData.get("slug") || "").trim();
+  const slug = await uniqueProductoSlug(slugInput || existing.slug || titulo, id_producto);
 
   await prisma.$transaction([
     prisma.categoria_producto.deleteMany({ where: { id_producto } }),
@@ -71,6 +86,7 @@ export async function updateProducto(id_producto: number, formData: FormData) {
       where: { id_producto },
       data: {
         titulo,
+        slug,
         descripcion,
         activo,
         categorias: {
@@ -84,6 +100,10 @@ export async function updateProducto(id_producto: number, formData: FormData) {
   revalidatePath(`/admin/productos/${id_producto}`);
   revalidatePath("/catalogo");
   revalidatePath(`/catalogo/${id_producto}`);
+  revalidatePath(`/producto/${slug}`);
+  if (existing.slug && existing.slug !== slug) {
+    revalidatePath(`/producto/${existing.slug}`);
+  }
 }
 
 export async function addPrecio(id_producto: number, formData: FormData) {
