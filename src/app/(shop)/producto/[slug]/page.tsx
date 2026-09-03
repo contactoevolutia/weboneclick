@@ -10,12 +10,12 @@ import { ProductPrice } from "@/components/product-price";
 import { ProductReserveForm } from "@/components/product-reserve-form";
 import { ProductStoreAvailability } from "@/components/product-store-availability";
 import {
-  getActiveProducts,
   getProductBySlug,
   precioEfectivo,
   resolveStoreAvailability,
   sortProductImageLinks,
 } from "@/lib/products";
+import { getRelatedProductsForPdp } from "@/lib/productos-relacionados";
 import { formatPriceArs, precioSinImpuestos, productoCalificaDescuentoContado } from "@/lib/pricing";
 import { getDescuentoContadoConfig } from "@/lib/parametros";
 import { whatsappUrl, uploadPublicUrl } from "@/lib/utils";
@@ -159,15 +159,7 @@ export default async function ProductoPage({ params }: { params: Params }) {
       ? Math.min(99, Math.floor(product.stockTotal))
       : 99;
 
-  const categoryId = product.categorias[0]?.id_categoria;
-  const related = categoryId
-    ? (
-        await getActiveProducts({
-          categoriaId: categoryId,
-          take: 8,
-        })
-      ).items.filter((p) => p.id_producto !== product.id_producto).slice(0, 8)
-    : [];
+  const related = await getRelatedProductsForPdp(product.id_producto);
 
   return (
     <div className="container oc-pdp">

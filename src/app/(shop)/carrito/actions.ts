@@ -11,7 +11,7 @@ import {
   type CartLine,
 } from "@/lib/cart";
 import { getActiveProducts, pickCurrentPriceInfo, precioEfectivo } from "@/lib/products";
-import { TIPO_RELACION_ACCESORIO } from "@/lib/productos-relacionados";
+import { getRelatedProductIds } from "@/lib/productos-relacionados";
 import { uploadPublicUrl } from "@/lib/utils";
 
 async function getStockState(id_producto: number): Promise<{
@@ -124,16 +124,7 @@ export async function addToCartWithSummary(input: {
   const cart = await resolveCart();
 
   // "Generalmente se compran junto con…": accesorios Odoo (productos_relacionados)
-  const relaciones = await prisma.productos_relacionados.findMany({
-    where: {
-      id_producto,
-      tipo_relacion: TIPO_RELACION_ACCESORIO,
-      id_producto_relacionado: { not: id_producto },
-    },
-    orderBy: { orden: "asc" },
-    select: { id_producto_relacionado: true },
-  });
-  const relatedIds = relaciones.map((r) => r.id_producto_relacionado);
+  const relatedIds = await getRelatedProductIds(id_producto);
   let related: Extract<AddToCartSummary, { ok: true }>["related"] = [];
   if (relatedIds.length) {
     const { items } = await getActiveProducts({
