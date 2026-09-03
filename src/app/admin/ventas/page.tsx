@@ -102,16 +102,25 @@ export default async function AdminVentasPage({ searchParams }: { searchParams: 
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  function hrefFor(nextPage: number) {
+  function filterParams(extra?: Record<string, string>) {
     const sp = new URLSearchParams();
     sp.set("desde", desde);
     sp.set("hasta", hasta);
     if (tipo_entrega) sp.set("tipo_entrega", tipo_entrega);
     if (estado) sp.set("estado", estado);
     if (id_tienda > 0) sp.set("id_tienda", String(id_tienda));
-    if (nextPage > 1) sp.set("page", String(nextPage));
+    if (extra) {
+      for (const [k, v] of Object.entries(extra)) sp.set(k, v);
+    }
+    return sp;
+  }
+
+  function hrefFor(nextPage: number) {
+    const sp = filterParams(nextPage > 1 ? { page: String(nextPage) } : undefined);
     return `/admin/ventas?${sp.toString()}`;
   }
+
+  const exportHref = `/api/admin/ventas/export?${filterParams().toString()}`;
 
   return (
     <div>
@@ -130,6 +139,9 @@ export default async function AdminVentasPage({ searchParams }: { searchParams: 
             Pedidos del sitio. Por defecto se muestra la última semana.
           </p>
         </div>
+        <a href={exportHref} className="btn btn-secondary">
+          Exportar CSV
+        </a>
       </div>
 
       <form
