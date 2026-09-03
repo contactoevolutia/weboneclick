@@ -2,18 +2,29 @@ import { mkdir, writeFile, unlink } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
 
-/** Raíz de uploads acotada a una subcarpeta del proyecto (evita NFT de todo el cwd). */
-export function getUploadsRoot() {
-  const configured = process.env.UPLOADS_DIR || "uploads";
+/** Resuelve un path bajo uploads. El join con literal `"uploads"` acota el NFT. */
+export function resolveUploadsPath(...segments: string[]) {
+  const configured = process.env.UPLOADS_DIR?.trim() || "uploads";
   if (path.isAbsolute(configured)) {
-    return configured;
+    return path.join(/* turbopackIgnore: true */ configured, ...segments);
   }
-  return path.join(/* turbopackIgnore: true */ process.cwd(), configured);
+  if (configured !== "uploads") {
+    return path.join(
+      /* turbopackIgnore: true */ process.cwd(),
+      configured,
+      ...segments,
+    );
+  }
+  return path.join(process.cwd(), "uploads", ...segments);
+}
+
+export function getUploadsRoot() {
+  return resolveUploadsPath();
 }
 
 function assertUnderUploadsRoot(absolute: string) {
   const root = path.resolve(getUploadsRoot());
-  const resolved = path.resolve(absolute);
+  const resolved = path.resolve(/* turbopackIgnore: true */ absolute);
   const rootWithSep = root.endsWith(path.sep) ? root : root + path.sep;
   if (resolved !== root && !resolved.startsWith(rootWithSep)) {
     throw new Error("Ruta de upload fuera del directorio permitido");
@@ -28,9 +39,11 @@ export async function saveUploadedFile(file: File, folder = "productos") {
   const allowed = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".pdf"];
   const safeExt = allowed.includes(ext) ? ext : folder === "fiscal" ? ".pdf" : ".jpg";
   const relative = path.posix.join(folder, `${randomUUID()}${safeExt}`);
-  const absolute = assertUnderUploadsRoot(path.join(getUploadsRoot(), relative));
-  await mkdir(path.dirname(absolute), { recursive: true });
-  await writeFile(absolute, bytes);
+  const absolute = assertUnderUploadsRoot(resolveUploadsPath(relative));
+  await mkdir(/* turbopackIgnore: true */ path.dirname(absolute), {
+    recursive: true,
+  });
+  await writeFile(/* turbopackIgnore: true */ absolute, bytes);
   return relative.replace(/\\/g, "/");
 }
 
@@ -45,10 +58,8 @@ export async function deleteUploadedFile(relativeLink: string) {
     return;
   }
   try {
-    const absolute = assertUnderUploadsRoot(
-      path.join(getUploadsRoot(), relativeLink),
-    );
-    await unlink(absolute);
+    const absolute = assertUnderUploadsRoot(resolveUploadsPath(relativeLink));
+    await unlink(/* turbopackIgnore: true */ absolute);
   } catch {
     // ignore missing / invalid
   }

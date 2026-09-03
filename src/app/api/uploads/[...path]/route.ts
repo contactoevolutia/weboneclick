@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readFile, stat } from "fs/promises";
 import path from "path";
-import { getUploadsRoot } from "@/lib/uploads";
+import { getUploadsRoot, resolveUploadsPath } from "@/lib/uploads";
 
 const MIME: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -22,7 +22,9 @@ export async function GET(_req: NextRequest, { params }: { params: Params }) {
   }
   const relative = parts.join("/");
   const root = path.resolve(getUploadsRoot());
-  const absolute = path.resolve(root, relative);
+  const absolute = path.resolve(
+    /* turbopackIgnore: true */ resolveUploadsPath(relative),
+  );
 
   const rootWithSep = root.endsWith(path.sep) ? root : root + path.sep;
   if (absolute !== root && !absolute.startsWith(rootWithSep)) {
@@ -35,8 +37,8 @@ export async function GET(_req: NextRequest, { params }: { params: Params }) {
   }
 
   try {
-    await stat(absolute);
-    const data = await readFile(absolute);
+    await stat(/* turbopackIgnore: true */ absolute);
+    const data = await readFile(/* turbopackIgnore: true */ absolute);
     return new NextResponse(data, {
       headers: {
         "Content-Type": MIME[ext] || "application/octet-stream",
