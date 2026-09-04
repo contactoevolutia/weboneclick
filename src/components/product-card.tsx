@@ -4,7 +4,9 @@ import { ProductPrice } from "@/components/product-price";
 import {
   formatPriceArs,
   precioSinImpuestos,
+  precioUnaCuota,
   productoCalificaDescuentoContado,
+  tieneDescuentoGeneral,
 } from "@/lib/pricing";
 import { precioEfectivo, type ProductListItem } from "@/lib/products";
 import { uploadPublicUrl } from "@/lib/utils";
@@ -15,13 +17,24 @@ type Props = {
   descuentoContado?: { umbralCuotas: number; porcentaje: number } | null;
 };
 
+function formatPctLabel(pct: number): string {
+  return Number.isInteger(pct) || pct % 1 === 0
+    ? String(Math.round(pct))
+    : pct.toFixed(1).replace(/\.0$/, "");
+}
+
 /** Card de producto estilo OneClick (cuotas en rojo + CTA animado). */
 export function ProductCard({ product, descuentoContado = null }: Props) {
   const venta = precioEfectivo(product.precio, product.precio_con_desc);
   const sinImp = precioSinImpuestos(venta);
   const cuotas = product.cuotas_max ?? 12;
   const outOfStock = product.stockTracked && product.stockTotal <= 0;
+  const hasGeneral = tieneDescuentoGeneral(product.descuento_general);
+  const precio1Cuota = hasGeneral
+    ? precioUnaCuota(product.precio, product.descuento_general)
+    : null;
   const muestraContado =
+    !hasGeneral &&
     descuentoContado != null &&
     productoCalificaDescuentoContado(
       product.cuotas_max,
@@ -72,6 +85,12 @@ export function ProductCard({ product, descuentoContado = null }: Props) {
           precio_con_desc={product.precio_con_desc}
         />
         <p className="oc-cuotas">Hasta {cuotas} Cuotas sin interés.</p>
+        {hasGeneral && precio1Cuota != null ? (
+          <p className="oc-contado">
+            1 cuota {formatPriceArs(precio1Cuota)} (−
+            {formatPctLabel(product.descuento_general!)}%)
+          </p>
+        ) : null}
         {muestraContado ? (
           <p className="oc-contado">
             Pagando contado {descuentoContado!.porcentaje}% de descuento

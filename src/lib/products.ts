@@ -6,6 +6,7 @@ import {
   sumSellableStock,
   type StockRow,
 } from "@/lib/almacenes";
+import { normalizeDescuentoGeneral } from "@/lib/pricing";
 
 export type ProductListItem = {
   id_producto: number;
@@ -18,6 +19,8 @@ export type ProductListItem = {
   porcentaje_desc: number | null;
   /** Precio bruto con descuento; null si no aplica. */
   precio_con_desc: number | null;
+  /** % descuento solo Contado / 1 cuota sobre precio de lista; null si no aplica. */
+  descuento_general: number | null;
   imagen: string | null;
   stockTotal: number;
   /** true si hay filas de stock en DB (sincronizado); false = stock desconocido */
@@ -617,6 +620,7 @@ const PRODUCT_LIST_SELECT = {
   titulo: true,
   slug: true,
   cuotas_max: true,
+  descuento_general: true,
   precios: {
     orderBy: { fecha_desde: "desc" as const },
     take: 1,
@@ -867,6 +871,7 @@ async function getActiveProductsUncached(options?: {
     .map((p) => {
       const stock = resolveStockAvailability(p!.stocks);
       const priceInfo = pickCurrentPriceInfo(p!.precios);
+      const descuento_general = normalizeDescuentoGeneral(p!.descuento_general);
       return {
         id_producto: p!.id_producto,
         titulo: p!.titulo,
@@ -875,6 +880,7 @@ async function getActiveProductsUncached(options?: {
         precio: priceInfo.precio,
         porcentaje_desc: priceInfo.porcentaje_desc,
         precio_con_desc: priceInfo.precio_con_desc,
+        descuento_general,
         imagen: p!.archivos[0]?.archivo.link ?? null,
         stockTotal: stock.stockTotal,
         stockTracked: stock.stockTracked,

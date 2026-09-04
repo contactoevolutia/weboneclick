@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { shopCookieOptions } from "@/lib/cookie-options";
 import { prisma } from "@/lib/prisma";
 import { pickCurrentPriceInfo, precioEfectivo, resolveStockAvailability } from "@/lib/products";
+import { normalizeDescuentoGeneral } from "@/lib/pricing";
 import {
   ALMACEN_WEB_SELECT,
   getShippingWarehouseOdooId,
@@ -30,6 +31,8 @@ export type ResolvedCartItem = {
   precioLista: number | null;
   /** % descuento pricelist; null si no aplica. */
   porcentajeDesc: number | null;
+  /** % descuento solo Contado / 1 cuota sobre precio de lista; null si no aplica. */
+  descuento_general: number | null;
   /** Tope comercial de cuotas sin interés (Odoo x_studio_installments). */
   cuotas_max: number | null;
   /** Alícuota IVA (0.105 | 0.21): la real de Odoo si el sync la trajo, si no estimada */
@@ -204,6 +207,7 @@ export async function resolveCart(lines?: CartLine[]): Promise<ResolvedCart> {
         precio: null,
         precioLista: null,
         porcentajeDesc: null,
+        descuento_general: null,
         cuotas_max: null,
         ivaRate: 0.21,
         stockTotal: 0,
@@ -224,6 +228,7 @@ export async function resolveCart(lines?: CartLine[]): Promise<ResolvedCart> {
       priceInfo.precio_con_desc != null && priceInfo.porcentaje_desc != null
         ? priceInfo.porcentaje_desc
         : null;
+    const descuento_general = normalizeDescuentoGeneral(product.descuento_general);
     const stock = resolveStockAvailability(product.stocks as StockRow[]);
     const stockPorAlmacen = stockByWarehouseOdooId(product.stocks as StockRow[]);
     const disponible =
@@ -243,6 +248,7 @@ export async function resolveCart(lines?: CartLine[]): Promise<ResolvedCart> {
       precio,
       precioLista,
       porcentajeDesc,
+      descuento_general,
       cuotas_max: product.cuotas_max,
       ivaRate: productIvaRate(product),
       stockTotal: stock.stockTotal,

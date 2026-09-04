@@ -3,7 +3,7 @@ import { ivaIncluded, resolveCart } from "@/lib/cart";
 import { computeTotals } from "@/lib/checkout-venta";
 import { resolveAppliedCupon } from "@/lib/cupones";
 import { getValorEnvioGratis } from "@/lib/parametros";
-import { formatPriceArs } from "@/lib/pricing";
+import { formatPriceArs, precioUnaCuota, tieneDescuentoGeneral } from "@/lib/pricing";
 import { uploadPublicUrl } from "@/lib/utils";
 import { CartCouponForm } from "@/components/cart-coupon-form";
 import { CartQtyControl } from "@/components/cart-qty-control";
@@ -185,6 +185,21 @@ export default async function CarritoPage() {
                               ) : (
                                 formatPriceArs(item.precio)
                               )}
+                              {tieneDescuentoGeneral(item.descuento_general) &&
+                              item.precioLista != null
+                                ? (() => {
+                                    const p1 = precioUnaCuota(
+                                      item.precioLista,
+                                      item.descuento_general,
+                                    );
+                                    return p1 != null ? (
+                                      <p className="oc-contado" style={{ marginTop: "0.35rem" }}>
+                                        1 cuota {formatPriceArs(p1)} (−
+                                        {Math.round(item.descuento_general!)}%)
+                                      </p>
+                                    ) : null;
+                                  })()
+                                : null}
                             </td>
                             <td>
                               <CartQtyControl

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ProductCard } from "@/components/product-card";
 import { prisma } from "@/lib/prisma";
 import { pickCurrentPriceInfo } from "@/lib/products";
+import { normalizeDescuentoGeneral } from "@/lib/pricing";
 import { getDescuentoContadoConfig } from "@/lib/parametros";
 import { pageMetadata } from "@/lib/seo/build-metadata";
 
@@ -54,6 +55,7 @@ export default async function EtiquetaPage({ params }: { params: Params }) {
       precio: priceInfo.precio,
       porcentaje_desc: priceInfo.porcentaje_desc,
       precio_con_desc: priceInfo.precio_con_desc,
+      descuento_general: normalizeDescuentoGeneral(p.descuento_general),
       imagen: p.archivos[0]?.archivo.link ?? null,
       stockTotal: p.stocks.reduce((a, s) => a + Number(s.cantidad), 0),
       stockTracked: p.stocks.length > 0,

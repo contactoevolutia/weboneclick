@@ -33,7 +33,9 @@ import {
 } from "@/lib/mp-payer-payload";
 import {
   factorDescuentoContado,
+  precioUnaCuota,
   productoCalificaDescuentoContado,
+  tieneDescuentoGeneral,
 } from "@/lib/pricing";
 import type { DescuentoContadoConfig } from "@/lib/parametros";
 import { getDescuentoContadoConfig } from "@/lib/parametros";
@@ -755,9 +757,12 @@ export function confirmationPath(id_venta: number, access_token: string, mp?: st
 }
 
 /**
- * Totales según medio de pago: la opción "mercado_pago" (contado) aplica
- * descuento solo a ítems con cuotas_max definido y >= umbral de parámetro;
- * luego un cupón de monto fijo se descuenta del subtotal de productos
+ * Totales según medio de pago:
+ * - Contado (`mercado_pago`): si el ítem tiene `descuento_general`, aplica ese %
+ *   sobre precio de lista (sin acumular con descuento contado por cuotas).
+ *   Si no, aplica % contado solo a ítems con cuotas_max >= umbral.
+ * - Cuotas (`tarjeta`): precio efectivo (promo Odoo / lista), sin descuento_general.
+ * Luego un cupón de monto fijo se descuenta del subtotal de productos
  * (no del envío) y se redistribuye en unit_price para MP.
  */
 export function computeTotals(
@@ -772,18 +777,27 @@ export function computeTotals(
     descuentoContadoConfig?.porcentaje ?? 0,
   );
   const itemsBase = cart.items.map((item) => {
-    const aplicaContado =
-      tipo_pago === "mercado_pago" &&
-      pctFactor > 0 &&
-      productoCalificaDescuentoContado(item.cuotas_max, umbral);
+    let unit_price = item.precio!;
+    if (tipo_pago === "mercado_pago") {
+      if (tieneDescuentoGeneral(item.descuento_general)) {
+        const unaCuota = precioUnaCuota(
+          item.precioLista,
+          item.descuento_general,
+        );
+        if (unaCuota != null) unit_price = unaCuota;
+      } else if (
+        pctFactor > 0 &&
+        productoCalificaDescuentoContado(item.cuotas_max, umbral)
+      ) {
+        unit_price = round2(item.precio! * (1 - pctFactor));
+      }
+    }
     return {
       id_producto: item.id_producto,
       titulo: item.titulo,
       cantidad: item.cantidad,
       ivaRate: item.ivaRate,
-      unit_price: aplicaContado
-        ? round2(item.precio! * (1 - pctFactor))
-        : item.precio!,
+      unit_price,
     };
   });
 

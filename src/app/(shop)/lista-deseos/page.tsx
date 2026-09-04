@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { ProductCard } from "@/components/product-card";
 import { pickCurrentPriceInfo } from "@/lib/products";
+import { normalizeDescuentoGeneral } from "@/lib/pricing";
 import { getDescuentoContadoConfig } from "@/lib/parametros";
 
 export const metadata = {
@@ -70,6 +71,7 @@ export default async function ListaDeseosPage() {
           precio: priceInfo.precio,
           porcentaje_desc: priceInfo.porcentaje_desc,
           precio_con_desc: priceInfo.precio_con_desc,
+          descuento_general: normalizeDescuentoGeneral(i.producto.descuento_general),
           imagen: i.producto.archivos[0]?.archivo.link ?? null,
           stockTotal: i.producto.stocks.reduce((a, s) => a + Number(s.cantidad), 0),
           stockTracked: i.producto.stocks.length > 0,

@@ -16,7 +16,14 @@ import {
   sortProductImageLinks,
 } from "@/lib/products";
 import { getRelatedProductsForPdp } from "@/lib/productos-relacionados";
-import { formatPriceArs, precioSinImpuestos, productoCalificaDescuentoContado } from "@/lib/pricing";
+import {
+  formatPriceArs,
+  normalizeDescuentoGeneral,
+  precioSinImpuestos,
+  precioUnaCuota,
+  productoCalificaDescuentoContado,
+  tieneDescuentoGeneral,
+} from "@/lib/pricing";
 import { getDescuentoContadoConfig } from "@/lib/parametros";
 import { whatsappUrl, uploadPublicUrl } from "@/lib/utils";
 import { pageMetadata } from "@/lib/seo/build-metadata";
@@ -145,10 +152,17 @@ export default async function ProductoPage({ params }: { params: Params }) {
   const venta = precioEfectivo(product.precio, product.precio_con_desc);
   const sinImp = precioSinImpuestos(venta);
   const descConfig = await getDescuentoContadoConfig();
-  const muestraContado = productoCalificaDescuentoContado(
-    product.cuotas_max,
-    descConfig.umbralCuotas,
-  );
+  const descuentoGeneral = normalizeDescuentoGeneral(product.descuento_general);
+  const hasGeneral = tieneDescuentoGeneral(descuentoGeneral);
+  const precio1Cuota = hasGeneral
+    ? precioUnaCuota(product.precio, descuentoGeneral)
+    : null;
+  const muestraContado =
+    !hasGeneral &&
+    productoCalificaDescuentoContado(
+      product.cuotas_max,
+      descConfig.umbralCuotas,
+    );
   const inStock = product.inStock;
   const storeAvailability = resolveStoreAvailability(product.stocks);
   const cuotaMonto =
@@ -233,6 +247,15 @@ export default async function ProductoPage({ params }: { params: Params }) {
           {inStock ? (
             <>
               <p className="oc-cuotas">Hasta {cuotas} Cuotas sin interés.</p>
+              {hasGeneral && precio1Cuota != null && descuentoGeneral != null ? (
+                <p className="oc-contado">
+                  1 cuota {formatPriceArs(precio1Cuota)} (−
+                  {Number.isInteger(descuentoGeneral) || descuentoGeneral % 1 === 0
+                    ? Math.round(descuentoGeneral)
+                    : descuentoGeneral.toFixed(1).replace(/\.0$/, "")}
+                  %)
+                </p>
+              ) : null}
               {muestraContado ? (
                 <p className="oc-contado">
                   Pagando contado {descConfig.porcentaje}% de descuento

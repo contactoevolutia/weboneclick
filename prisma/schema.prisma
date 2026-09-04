@@ -204,6 +204,8 @@ model producto {
   odoo_id     Int?    @unique
   id_marca    Int?
   cuotas_max  Int?
+  /// % descuento solo para pago Contado / 1 cuota, sobre precio de lista. Null = no aplica.
+  descuento_general Decimal? @db.Decimal(5, 2)
   activo      Boolean @default(true)
   /// Alícuota IVA real del producto en Odoo (0.2100 | 0.1050). Null = sin dato del sync.
   iva_rate    Decimal? @db.Decimal(5, 4)

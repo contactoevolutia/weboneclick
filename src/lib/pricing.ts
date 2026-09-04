@@ -36,6 +36,41 @@ export function factorDescuentoContado(porcentaje: number): number {
   return Math.min(porcentaje, 100) / 100;
 }
 
+/** True si el producto tiene % descuento general (solo Contado / 1 cuota). */
+export function tieneDescuentoGeneral(
+  descuentoGeneral: number | null | undefined,
+): boolean {
+  return (
+    descuentoGeneral != null &&
+    Number.isFinite(descuentoGeneral) &&
+    descuentoGeneral > 0
+  );
+}
+
+/** Normaliza Decimal/number de DB a % usable (> 0) o null. */
+export function normalizeDescuentoGeneral(
+  value: number | { toString(): string } | null | undefined,
+): number | null {
+  if (value == null) return null;
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/**
+ * Precio Contado / 1 cuota cuando hay `descuento_general` sobre precio de lista.
+ * No usa promo Odoo (`precio_con_desc`).
+ */
+export function precioUnaCuota(
+  precioLista: number | null | undefined,
+  descuentoGeneral: number | null | undefined,
+): number | null {
+  if (precioLista == null || !tieneDescuentoGeneral(descuentoGeneral)) {
+    return null;
+  }
+  const factor = factorDescuentoContado(descuentoGeneral!);
+  return Math.round(precioLista * (1 - factor) * 100) / 100;
+}
+
 export function precioContado(
   precioLista: number | null | undefined,
   porcentaje: number,

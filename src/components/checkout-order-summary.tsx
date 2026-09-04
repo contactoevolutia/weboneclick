@@ -33,7 +33,8 @@ type Props = {
   lines: CheckoutOrderLine[];
   subtotalLista: number;
   descuentoContadoMonto: number;
-  descuentoContadoPct: number;
+  /** Etiqueta del descuento Contado / 1 cuota (ej. "Descuento 1 cuota"). */
+  descuentoLabel: string;
   cuponCodigo?: string | null;
   descuentoCupon: number;
   itemsTarjeta: AlignGrossItem[];
@@ -46,7 +47,7 @@ export function CheckoutOrderSummary({
   lines,
   subtotalLista,
   descuentoContadoMonto,
-  descuentoContadoPct,
+  descuentoLabel,
   cuponCodigo,
   descuentoCupon,
   itemsTarjeta,
@@ -122,7 +123,7 @@ export function CheckoutOrderSummary({
         </tr>
         {mostrarDescuento && (
           <tr className="oc-checkout-descuento-contado">
-            <th>Descuento contado ({descuentoContadoPct}%)</th>
+            <th>{descuentoLabel}</th>
             <td>−{formatArs(descuentoContadoMonto)}</td>
           </tr>
         )}

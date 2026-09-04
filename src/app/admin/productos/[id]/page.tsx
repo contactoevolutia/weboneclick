@@ -87,6 +87,26 @@ export default async function AdminProductoDetailPage({ params }: { params: Para
               <label>Descripción</label>
               <textarea name="descripcion" rows={3} defaultValue={product.descripcion} required />
             </div>
+            <div className="form-field">
+              <label>Descuento general % (solo 1 cuota / Contado)</label>
+              <input
+                name="descuento_general"
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                placeholder="Ej. 10"
+                defaultValue={
+                  product.descuento_general != null && Number(product.descuento_general) > 0
+                    ? Number(product.descuento_general)
+                    : ""
+                }
+              />
+              <p className="muted" style={{ marginTop: "0.35rem", fontSize: "0.85rem" }}>
+                Sobre el precio de lista. No se acumula con el descuento contado por cuotas.
+                Vacío o 0 = no aplica.
+              </p>
+            </div>
             <div className="form-field" style={{ marginBottom: "0.35rem" }}>
               <label>Categorías</label>
               <div className="admin-cats-scroll">

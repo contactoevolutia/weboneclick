@@ -5,7 +5,7 @@ import {
   alignGrossesToOdooTotal,
   type AlignGrossItem,
 } from "@/lib/odoo-amount";
-import { installmentOptions, labelModoContado } from "@/lib/pricing";
+import { installmentOptions } from "@/lib/pricing";
 import {
   getLastShippingQuote,
   SHIPPING_QUOTE_EVENT,
@@ -25,12 +25,18 @@ type Props = {
   maxInstallments: number;
   mpConfigured: boolean;
   publicKey: string | null;
-  /** Porcentaje configurado (20 = 20%). */
-  descuentoContadoPct: number;
-  /** Monto de descuento contado ya calculado (0 si nadie califica). */
+  /** Título modo Contado (ej. "Contado — descuento 1 cuota"). */
+  contadoTitle: string;
+  /** Texto auxiliar bajo la opción Contado. */
+  contadoHint: string;
+  /** Monto de descuento Contado / 1 cuota (0 si nadie califica). */
   descuentoContadoMonto: number;
   /** True si hay ítems con y sin descuento en el mismo carrito. */
   descuentoContadoParcial: boolean;
+  /** Si el descuento Contado viene solo de descuento_general (no del % param). */
+  descuentoSoloGeneral: boolean;
+  /** % a mostrar (ej. "15" o "10/20"); null si no hay un rótulo único. */
+  descuentoPctLabel: string | null;
 };
 
 function formatArs(value: number): string {
@@ -94,21 +100,13 @@ export function CheckoutPaymentOptions({
   maxInstallments,
   mpConfigured,
   publicKey,
-  descuentoContadoPct,
+  contadoTitle,
+  contadoHint,
   descuentoContadoMonto,
   descuentoContadoParcial,
+  descuentoSoloGeneral,
+  descuentoPctLabel,
 }: Props) {
-  const contadoTitle = labelModoContado({
-    porcentaje: descuentoContadoPct,
-    descuentoMonto: descuentoContadoMonto,
-    parcial: descuentoContadoParcial,
-  });
-  const contadoHint =
-    descuentoContadoMonto > 0
-      ? descuentoContadoParcial
-        ? `Un pago. El ${descuentoContadoPct}% aplica solo a productos elegibles; toda la compra es al contado.`
-        : `Un pago o dinero en cuenta Mercado Pago. Incluye ${descuentoContadoPct}% de descuento.`
-      : "Un pago o dinero en cuenta Mercado Pago.";
   const [modo, setModo] = useState<ModoCobro>("contado");
   const [mecanismo, setMecanismo] = useState<Mecanismo>("mercado_pago");
   const [error, setError] = useState<string | null>(null);
@@ -513,7 +511,21 @@ export function CheckoutPaymentOptions({
           <small>
             {modo === "contado"
               ? descuentoContadoMonto > 0
-                ? `Ingresá la tarjeta en el sitio. Un solo pago${descuentoContadoParcial ? ` (${descuentoContadoPct}% en productos elegibles)` : ` con ${descuentoContadoPct}% de descuento`}.`
+                ? descuentoSoloGeneral
+                  ? descuentoContadoParcial
+                    ? descuentoPctLabel
+                      ? `Ingresá la tarjeta en el sitio. Un solo pago (${descuentoPctLabel}% 1 cuota en productos elegibles).`
+                      : "Ingresá la tarjeta en el sitio. Un solo pago (descuento 1 cuota en productos elegibles)."
+                    : descuentoPctLabel
+                      ? `Ingresá la tarjeta en el sitio. Un solo pago con ${descuentoPctLabel}% de descuento 1 cuota.`
+                      : "Ingresá la tarjeta en el sitio. Un solo pago con descuento 1 cuota."
+                  : descuentoContadoParcial
+                    ? descuentoPctLabel
+                      ? `Ingresá la tarjeta en el sitio. Un solo pago (${descuentoPctLabel}% en productos elegibles).`
+                      : "Ingresá la tarjeta en el sitio. Un solo pago (descuento en productos elegibles)."
+                    : descuentoPctLabel
+                      ? `Ingresá la tarjeta en el sitio. Un solo pago con ${descuentoPctLabel}% de descuento.`
+                      : "Ingresá la tarjeta en el sitio. Un solo pago con descuento."
                 : "Ingresá la tarjeta en el sitio. Un solo pago."
               : <>
                   Ingresá la tarjeta en el sitio. Hasta{" "}
@@ -545,7 +557,13 @@ export function CheckoutPaymentOptions({
                     <option key={n} value={n}>
                       {n === 1
                         ? descuentoContadoMonto > 0
-                          ? `1 pago · ${formatArs(total)} · ${descuentoContadoPct}% de descuento`
+                          ? descuentoPctLabel
+                            ? descuentoSoloGeneral
+                              ? `1 pago · ${formatArs(total)} · ${descuentoPctLabel}% 1 cuota`
+                              : `1 pago · ${formatArs(total)} · ${descuentoPctLabel}% de descuento`
+                            : descuentoSoloGeneral
+                              ? `1 pago · ${formatArs(total)} · descuento 1 cuota`
+                              : `1 pago · ${formatArs(total)} · con descuento`
                           : `1 pago · ${formatArs(total)}`
                         : `${n} cuotas de ${formatArs(cuota)} · ${formatArs(total)} · sin interés`}
                     </option>

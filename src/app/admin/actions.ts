@@ -79,6 +79,15 @@ export async function updateProducto(id_producto: number, formData: FormData) {
   const categoriaIds = formData.getAll("categorias").map(Number).filter(Boolean);
   const slugInput = String(formData.get("slug") || "").trim();
   const slug = await uniqueProductoSlug(slugInput || existing.slug || titulo, id_producto);
+  const descuentoRaw = String(formData.get("descuento_general") || "").trim();
+  let descuento_general: number | null = null;
+  if (descuentoRaw !== "") {
+    const n = Number(descuentoRaw.replace(",", "."));
+    if (!Number.isFinite(n) || n < 0 || n > 100) {
+      throw new Error("Descuento general inválido (0–100)");
+    }
+    descuento_general = n > 0 ? Math.round(n * 100) / 100 : null;
+  }
 
   await prisma.$transaction([
     prisma.categoria_producto.deleteMany({ where: { id_producto } }),
@@ -89,6 +98,7 @@ export async function updateProducto(id_producto: number, formData: FormData) {
         slug,
         descripcion,
         activo,
+        descuento_general,
         categorias: {
           create: categoriaIds.map((id_categoria) => ({ id_categoria })),
         },

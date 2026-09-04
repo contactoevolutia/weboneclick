@@ -24,7 +24,9 @@ import { getDescuentoContadoConfig } from "@/lib/parametros";
 import {
   factorDescuentoContado,
   labelModoContado,
+  precioUnaCuota,
   productoCalificaDescuentoContado,
+  tieneDescuentoGeneral,
 } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
 import { isMercadoPagoConfigured } from "@/lib/mercadopago";
@@ -90,19 +92,89 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
     descuentoContadoConfig,
   );
   const descuentoCupon = totalsTarjeta.descuentoCupon;
-  const eligibleContado = cart.items.filter((i) =>
-    productoCalificaDescuentoContado(
-      i.cuotas_max,
-      descuentoContadoConfig.umbralCuotas,
-    ),
+  const eligibleContado = cart.items.filter(
+    (i) =>
+      !tieneDescuentoGeneral(i.descuento_general) &&
+      productoCalificaDescuentoContado(
+        i.cuotas_max,
+        descuentoContadoConfig.umbralCuotas,
+      ),
   ).length;
+  const generalItems = cart.items.filter((i) =>
+    tieneDescuentoGeneral(i.descuento_general),
+  );
+  const eligibleGeneral = generalItems.length;
+  const generalPcts = [
+    ...new Set(
+      generalItems.map((i) => Number(i.descuento_general)),
+    ),
+  ].sort((a, b) => a - b);
+  const formatPct = (n: number) =>
+    Number.isInteger(n) || n % 1 === 0
+      ? String(Math.round(n))
+      : n.toFixed(1).replace(/\.0$/, "");
+  const generalPctLabel =
+    generalPcts.length === 1 ? formatPct(generalPcts[0]) : null;
+  const generalPctsText =
+    generalPcts.length > 1
+      ? generalPcts.map(formatPct).join("/")
+      : generalPctLabel;
   const descuentoContadoParcial =
-    eligibleContado > 0 && eligibleContado < cart.items.length;
-  const contadoSummaryLabel = labelModoContado({
-    porcentaje: descuentoContadoConfig.porcentaje,
-    descuentoMonto: totalsContado.descuentoContado,
-    parcial: descuentoContadoParcial,
-  });
+    (eligibleContado > 0 || eligibleGeneral > 0) &&
+    eligibleContado + eligibleGeneral < cart.items.length;
+  const descuentoSoloGeneral =
+    eligibleGeneral > 0 && eligibleContado === 0;
+  const contadoSummaryLabel = descuentoSoloGeneral
+    ? totalsContado.descuentoContado > 0
+      ? descuentoContadoParcial
+        ? generalPctsText
+          ? `Contado — ${generalPctsText}% 1 cuota en elegibles`
+          : "Contado — descuento 1 cuota en elegibles"
+        : generalPctLabel
+          ? `Contado — ${generalPctLabel}% de descuento 1 cuota`
+          : generalPctsText
+            ? `Contado — ${generalPctsText}% descuento 1 cuota`
+            : "Contado — descuento 1 cuota"
+      : "Contado"
+    : labelModoContado({
+        porcentaje: descuentoContadoConfig.porcentaje,
+        descuentoMonto: totalsContado.descuentoContado,
+        parcial: descuentoContadoParcial,
+      });
+  const pedidoDescuentoLabel = descuentoSoloGeneral
+    ? generalPctLabel
+      ? `Descuento 1 cuota (${generalPctLabel}%)`
+      : generalPctsText
+        ? `Descuento 1 cuota (${generalPctsText}%)`
+        : "Descuento 1 cuota"
+    : eligibleGeneral > 0 && eligibleContado > 0
+      ? generalPctsText
+        ? `Descuentos (${generalPctsText}% / contado ${descuentoContadoConfig.porcentaje}%)`
+        : "Descuentos"
+      : `Descuento contado (${descuentoContadoConfig.porcentaje}%)`;
+  const contadoHint =
+    totalsContado.descuentoContado > 0
+      ? descuentoSoloGeneral
+        ? descuentoContadoParcial
+          ? generalPctsText
+            ? `Un pago. El ${generalPctsText}% 1 cuota aplica solo a productos elegibles; toda la compra es al contado.`
+            : "Un pago. El descuento 1 cuota aplica solo a productos elegibles; toda la compra es al contado."
+          : generalPctLabel
+            ? `Un pago o dinero en cuenta Mercado Pago. Incluye ${generalPctLabel}% de descuento 1 cuota.`
+            : generalPctsText
+              ? `Un pago o dinero en cuenta Mercado Pago. Incluye ${generalPctsText}% descuento 1 cuota.`
+              : "Un pago o dinero en cuenta Mercado Pago. Incluye descuento 1 cuota."
+        : descuentoContadoParcial
+          ? `Un pago. El ${descuentoContadoConfig.porcentaje}% aplica solo a productos elegibles; toda la compra es al contado.`
+          : eligibleGeneral > 0
+            ? "Un pago o dinero en cuenta Mercado Pago. Incluye descuentos según producto."
+            : `Un pago o dinero en cuenta Mercado Pago. Incluye ${descuentoContadoConfig.porcentaje}% de descuento.`
+      : "Un pago o dinero en cuenta Mercado Pago.";
+  const descuentoPctLabel = descuentoSoloGeneral
+    ? generalPctLabel ?? generalPctsText
+    : eligibleGeneral > 0
+      ? null
+      : String(descuentoContadoConfig.porcentaje);
   const regalo = await getRegaloApplicable(regaloCartContext(cart));
 
   const itemsTarjeta: AlignGrossItem[] = totalsTarjeta.itemsCobro.map((i) => ({
@@ -149,23 +221,36 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
     descuentoContadoConfig.porcentaje,
   );
   const orderLines = cart.items.map((item) => {
-    const elegible = productoCalificaDescuentoContado(
-      item.cuotas_max,
-      descuentoContadoConfig.umbralCuotas,
-    );
+    const hasGeneral = tieneDescuentoGeneral(item.descuento_general);
+    const elegibleContadoParam =
+      !hasGeneral &&
+      productoCalificaDescuentoContado(
+        item.cuotas_max,
+        descuentoContadoConfig.umbralCuotas,
+      );
     const subtotalLista = item.subtotal ?? 0;
-    const subtotalContado =
-      elegible && factorContado > 0 && item.precio != null
-        ? Math.round(item.precio * (1 - factorContado) * item.cantidad * 100) /
-          100
-        : subtotalLista;
+    let subtotalContado = subtotalLista;
+    if (hasGeneral && item.precioLista != null) {
+      const unit = precioUnaCuota(item.precioLista, item.descuento_general);
+      if (unit != null) {
+        subtotalContado = Math.round(unit * item.cantidad * 100) / 100;
+      }
+    } else if (
+      elegibleContadoParam &&
+      factorContado > 0 &&
+      item.precio != null
+    ) {
+      subtotalContado =
+        Math.round(item.precio * (1 - factorContado) * item.cantidad * 100) /
+        100;
+    }
     return {
       id_producto: item.id_producto,
       titulo: item.titulo,
       cantidad: item.cantidad,
       subtotalLista,
       subtotalContado,
-      elegibleContado: elegible,
+      elegibleContado: hasGeneral || elegibleContadoParam,
     };
   });
 
@@ -267,9 +352,12 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
                 maxInstallments={cartMaxInstallments(cart.items)}
                 mpConfigured={mercadoPagoConfigured}
                 publicKey={mpPublicKey}
-                descuentoContadoPct={descuentoContadoConfig.porcentaje}
+                contadoTitle={contadoSummaryLabel}
+                contadoHint={contadoHint}
                 descuentoContadoMonto={totalsContado.descuentoContado}
                 descuentoContadoParcial={descuentoContadoParcial}
+                descuentoSoloGeneral={descuentoSoloGeneral}
+                descuentoPctLabel={descuentoPctLabel}
               />
             </CheckoutStep>
           </CheckoutWizard>
@@ -281,7 +369,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
                 lines={orderLines}
                 subtotalLista={cart.subtotal}
                 descuentoContadoMonto={totalsContado.descuentoContado}
-                descuentoContadoPct={descuentoContadoConfig.porcentaje}
+                descuentoLabel={pedidoDescuentoLabel}
                 cuponCodigo={cupon?.codigo}
                 descuentoCupon={descuentoCupon}
                 itemsTarjeta={itemsTarjeta}
